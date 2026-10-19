@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Star, GitFork, Users } from "lucide-react";
@@ -7,14 +8,43 @@ import Button from "./Button";
 import { TechPill, RolePill } from "./Pill";
 import { staggerItem } from "./PageTransition";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "./Toast";
 
 export default function ProjectCard({ project, onCollaborate }) {
   const { user } = useAuth();
+  const showToast = useToast();
   if (!project) return null;
 
   const currentUsername = user?.user_name;
   const projectOwnerUsername = project.owner?.user_name;
   const isOwnProject = currentUsername && projectOwnerUsername && currentUsername === projectOwnerUsername;
+
+  const initialStarred = Boolean(
+    currentUsername && Array.isArray(project.liked_by) && project.liked_by.includes(currentUsername)
+  );
+  const initialForked = Boolean(
+    currentUsername && Array.isArray(project.forked_by) && project.forked_by.includes(currentUsername)
+  );
+
+  const [stars, setStars] = useState(project.stars ?? 0);
+  const [forks, setForks] = useState(project.forks ?? 0);
+  const [isStarred, setIsStarred] = useState(initialStarred);
+  const [isForked, setIsForked] = useState(initialForked);
+  const [isStarring, setIsStarring] = useState(false);
+  const [isForking, setIsForking] = useState(false);
+
+  useEffect(() => {
+    setStars(project.stars ?? 0);
+    setForks(project.forks ?? 0);
+    if (currentUsername) {
+      if (Array.isArray(project.liked_by)) {
+        setIsStarred(project.liked_by.includes(currentUsername));
+      }
+      if (Array.isArray(project.forked_by)) {
+        setIsForked(project.forked_by.includes(currentUsername));
+      }
+    }
+  }, [project, currentUsername]);
 
   const collabs = Array.isArray(project.collaborators) ? project.collaborators : [];
   const isCollaborator = currentUsername && collabs.some(
@@ -29,6 +59,91 @@ export default function ProjectCard({ project, onCollaborate }) {
     : (Array.isArray(project.rolesNeeded) ? project.rolesNeeded : []);
   const techList = Array.isArray(project.tech) ? project.tech : [];
 
+  const handleStar = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isStarring) return;
+
+    if (!currentUsername) {
+      showToast("Please log in to like projects", "error");
+      return;
+    }
+
+    setIsStarring(true);
+    const action = isStarred ? "unstar" : "star";
+    const nextStarred = !isStarred;
+    const nextStars = nextStarred ? stars + 1 : Math.max(0, stars - 1);
+
+    // Optimistic UI
+    setIsStarred(nextStarred);
+    setStars(nextStars);
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/projects/${project.id}/interact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, user_name: currentUsername }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.already_liked) {
+          setIsStarred(true);
+          setStars(data.stars ?? stars);
+          showToast("You have already liked this project", "info");
+          return;
+        }
+        throw new Error(data.message || "Failed to update like");
+      }
+      if (data.stars !== undefined) setStars(data.stars);
+      showToast(nextStarred ? "Liked project!" : "Unliked project", "success");
+    } catch (err) {
+      // Revert if error
+      setIsStarred(!nextStarred);
+      setStars(stars);
+      showToast(err.message || "Could not update like", "error");
+    } finally {
+      setIsStarring(false);
+    }
+  };
+
+  const handleFork = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isForking || isForked) return;
+
+    if (!currentUsername) {
+      showToast("Please log in to fork projects", "error");
+      return;
+    }
+
+    setIsForking(true);
+    setIsForked(true);
+    setForks(forks + 1);
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/projects/${project.id}/interact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "fork", user_name: currentUsername }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.already_forked) {
+          showToast("You have already forked this project", "info");
+          return;
+        }
+        throw new Error(data.message || "Failed to fork");
+      }
+      if (data.forks !== undefined) setForks(data.forks);
+      showToast("Project forked to your workspace!", "success");
+    } catch (_) {
+      setIsForked(false);
+      setForks(forks);
+    } finally {
+      setIsForking(false);
+    }
+  };
+
   return (
     <GlassCard as={motion.div} variants={staggerItem} className="p-6 flex flex-col gap-4 group">
       <div className="flex items-center justify-between">
@@ -39,13 +154,36 @@ export default function ProjectCard({ project, onCollaborate }) {
             <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{ownerHandle}</p>
           </div>
         </Link>
-        <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 shrink-0">
-          <span className="flex items-center gap-1 text-xs">
-            <Star className="w-3.5 h-3.5" /> {project.stars ?? 0}
-          </span>
-          <span className="flex items-center gap-1 text-xs">
-            <GitFork className="w-3.5 h-3.5" /> {project.forks ?? 0}
-          </span>
+
+        {/* Real Interactive Like & Fork Buttons */}
+        <div className="flex items-center gap-2 shrink-0">
+          <motion.button
+            whileTap={{ scale: 0.88 }}
+            onClick={handleStar}
+            title={isStarred ? "Unlike" : "Like (Star)"}
+            className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-xl border transition-all ${
+              isStarred
+                ? "bg-amber-500/20 text-amber-500 border-amber-500/40 shadow-sm shadow-amber-500/10"
+                : "bg-slate-900/5 dark:bg-white/5 text-slate-600 dark:text-slate-400 border-slate-900/10 dark:border-white/10 hover:text-amber-500 hover:border-amber-500/30"
+            }`}
+          >
+            <Star className={`w-3.5 h-3.5 ${isStarred ? "fill-amber-500 text-amber-500" : ""}`} />
+            <span>{stars}</span>
+          </motion.button>
+
+          <motion.button
+            whileTap={{ scale: 0.88 }}
+            onClick={handleFork}
+            title="Fork Project"
+            className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-xl border transition-all ${
+              isForked
+                ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/40 shadow-sm shadow-indigo-500/10"
+                : "bg-slate-900/5 dark:bg-white/5 text-slate-600 dark:text-slate-400 border-slate-900/10 dark:border-white/10 hover:text-indigo-400 hover:border-indigo-500/30"
+            }`}
+          >
+            <GitFork className="w-3.5 h-3.5" />
+            <span>{forks}</span>
+          </motion.button>
         </div>
       </div>
 

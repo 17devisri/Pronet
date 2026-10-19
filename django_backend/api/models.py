@@ -53,6 +53,8 @@ class Project(models.Model):
     github = models.CharField(max_length=255, blank=True, default="")
     stars = models.IntegerField(default=0)
     forks = models.IntegerField(default=0)
+    liked_by = models.JSONField(default=list, blank=True)
+    forked_by = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

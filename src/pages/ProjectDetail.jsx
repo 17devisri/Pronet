@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Star, GitFork, Code2, ArrowLeft, Send, ExternalLink } from "lucide-react";
+import { Star, GitFork, Code2, ArrowLeft, Send, ExternalLink, Edit3 } from "lucide-react";
 import GlassCard from "../components/GlassCard";
 import Avatar from "../components/Avatar";
 import Button from "../components/Button";
 import { TechPill, RolePill } from "../components/Pill";
 import { Input } from "../components/Input";
 import CollaborateModal from "../components/CollaborateModal";
+import EditProjectModal from "../components/EditProjectModal";
+import { useToast } from "../components/Toast";
 import PageTransition, { staggerContainer, staggerItem } from "../components/PageTransition";
 import { projects as mockProjects } from "../data/mock";
 import { useAuth } from "../context/AuthContext";
@@ -16,11 +18,20 @@ export default function ProjectDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const showToast = useToast();
   const fallbackProject = mockProjects.find((p) => p.id === id) ?? mockProjects[0];
   const [project, setProject] = useState(fallbackProject);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState(fallbackProject.comments || []);
+
+  const [stars, setStars] = useState(fallbackProject.stars ?? 0);
+  const [forks, setForks] = useState(fallbackProject.forks ?? 0);
+  const [isStarred, setIsStarred] = useState(false);
+  const [isForked, setIsForked] = useState(false);
+  const [isStarring, setIsStarring] = useState(false);
+  const [isForking, setIsForking] = useState(false);
 
   useEffect(() => {
     fetch(`http://localhost:5000/api/projects/${id}`)
@@ -31,13 +42,102 @@ export default function ProjectDetail() {
       .then((data) => {
         if (data && data.title) {
           setProject(data);
+          setStars(data.stars ?? 0);
+          setForks(data.forks ?? 0);
+          const currentUsername = user?.user_name;
+          if (currentUsername && Array.isArray(data.liked_by)) {
+            setIsStarred(data.liked_by.includes(currentUsername));
+          }
+          if (currentUsername && Array.isArray(data.forked_by)) {
+            setIsForked(data.forked_by.includes(currentUsername));
+          }
           if (Array.isArray(data.comments)) {
             setComments(data.comments);
           }
         }
       })
       .catch(() => {});
-  }, [id]);
+  }, [id, user?.user_name]);
+
+  const handleStar = async () => {
+    if (isStarring) return;
+    const currentUsername = user?.user_name;
+    if (!currentUsername) {
+      showToast("Please log in to like projects", "error");
+      return;
+    }
+
+    setIsStarring(true);
+    const action = isStarred ? "unstar" : "star";
+    const nextStarred = !isStarred;
+    const nextStars = nextStarred ? stars + 1 : Math.max(0, stars - 1);
+
+    setIsStarred(nextStarred);
+    setStars(nextStars);
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/projects/${id}/interact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, user_name: currentUsername }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.already_liked) {
+          setIsStarred(true);
+          setStars(data.stars ?? stars);
+          showToast("You have already liked this project", "info");
+          return;
+        }
+        throw new Error(data.message || "Failed to update like");
+      }
+      if (data.stars !== undefined) setStars(data.stars);
+      showToast(nextStarred ? "Liked project!" : "Unliked project", "success");
+    } catch (err) {
+      setIsStarred(!nextStarred);
+      setStars(stars);
+      showToast(err.message || "Could not update like", "error");
+    } finally {
+      setIsStarring(false);
+    }
+  };
+
+  const handleFork = async () => {
+    if (isForking || isForked) return;
+    const currentUsername = user?.user_name;
+    if (!currentUsername) {
+      showToast("Please log in to fork projects", "error");
+      return;
+    }
+
+    setIsForking(true);
+    setIsForked(true);
+    setForks(forks + 1);
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/projects/${id}/interact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "fork", user_name: currentUsername }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.already_forked) {
+          showToast("You have already forked this project", "info");
+          return;
+        }
+        throw new Error(data.message || "Failed to fork");
+      }
+      if (data.forks !== undefined) setForks(data.forks);
+      showToast("Project forked to your workspace!", "success");
+    } catch (_) {
+      setIsForked(false);
+      setForks(forks);
+      showToast("Failed to fork project", "error");
+    } finally {
+      setIsForking(false);
+    }
+  };
 
   const postComment = async () => {
     if (!comment.trim()) return;
@@ -112,6 +212,7 @@ export default function ProjectDetail() {
     : [];
   const collabs = Array.isArray(project.collaborators) ? project.collaborators : [];
   const githubLink = project.github || "https://github.com/pronet";
+  const isOwner = user?.user_name && project.owner?.user_name && user.user_name === project.owner.user_name;
 
   return (
     <PageTransition className="max-w-5xl mx-auto px-6 py-10">
@@ -131,17 +232,51 @@ export default function ProjectDetail() {
         <div className="space-y-6">
           <GlassCard variants={staggerItem} className="p-7 sm:p-8">
             <div className="flex items-start justify-between gap-4 flex-wrap mb-5">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white mb-2">{project.title}</h1>
-                <p className="text-slate-600 dark:text-slate-400">{project.tagline}</p>
+              <div className="flex-1 min-w-[240px]">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">{project.title}</h1>
+                  {isOwner && (
+                    <Button
+                      size="xs"
+                      variant="glass"
+                      onClick={() => setEditModalOpen(true)}
+                      className="flex items-center gap-1.5"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" /> Edit Project
+                    </Button>
+                  )}
+                </div>
+                <p className="text-slate-600 dark:text-slate-400 mt-1">{project.tagline}</p>
               </div>
-              <div className="flex items-center gap-4 text-slate-500 dark:text-slate-400 shrink-0">
-                <span className="flex items-center gap-1.5 text-sm">
-                  <Star className="w-4 h-4" /> {project.stars ?? 0}
-                </span>
-                <span className="flex items-center gap-1.5 text-sm">
-                  <GitFork className="w-4 h-4" /> {project.forks ?? 0}
-                </span>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleStar}
+                  title={isStarred ? "Unlike" : "Like (Star)"}
+                  className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-all ${
+                    isStarred
+                      ? "bg-amber-500/20 text-amber-500 border-amber-500/40 shadow-sm shadow-amber-500/10"
+                      : "bg-slate-900/5 dark:bg-white/5 text-slate-600 dark:text-slate-400 border-slate-900/10 dark:border-white/10 hover:text-amber-500 hover:border-amber-500/30"
+                  }`}
+                >
+                  <Star className={`w-4 h-4 ${isStarred ? "fill-amber-500 text-amber-500" : ""}`} />
+                  <span className="font-medium">{stars}</span>
+                </motion.button>
+
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleFork}
+                  title="Fork Project"
+                  className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-all ${
+                    isForked
+                      ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/40 shadow-sm shadow-indigo-500/10"
+                      : "bg-slate-900/5 dark:bg-white/5 text-slate-600 dark:text-slate-400 border-slate-900/10 dark:border-white/10 hover:text-indigo-400 hover:border-indigo-500/30"
+                  }`}
+                >
+                  <GitFork className="w-4 h-4" />
+                  <span className="font-medium">{forks}</span>
+                </motion.button>
               </div>
             </div>
 
@@ -251,9 +386,18 @@ export default function ProjectDetail() {
                 <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{ownerTitle}</p>
               </div>
             </Link>
-            {user?.user_name && project.owner?.user_name && user.user_name === project.owner.user_name ? (
-              <div className="w-full py-2.5 text-center text-sm font-medium rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                You own this project
+            {isOwner ? (
+              <div className="space-y-2">
+                <div className="w-full py-2.5 text-center text-sm font-medium rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                  You own this project
+                </div>
+                <Button
+                  variant="secondary"
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={() => setEditModalOpen(true)}
+                >
+                  <Edit3 className="w-4 h-4" /> Edit Project
+                </Button>
               </div>
             ) : user?.user_name && collabs.some((c) => (c.user_name && c.user_name === user.user_name) || (c.name && c.name === user.user_name)) ? (
               <div className="w-full py-2.5 text-center text-sm font-medium rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -282,7 +426,7 @@ export default function ProjectDetail() {
                     <p className="text-sm text-slate-800 dark:text-slate-100 truncate">
                       {c.user_name || c.name}
                     </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{c.title || "Contributor"}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{c.role || c.title || "Contributor"}</p>
                   </div>
                 </div>
               ))}
@@ -295,6 +439,15 @@ export default function ProjectDetail() {
       </motion.div>
 
       <CollaborateModal project={project} open={modalOpen} onClose={() => setModalOpen(false)} />
+      <EditProjectModal
+        project={project}
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onProjectUpdated={(updated) => setProject((prev) => ({ ...prev, ...updated }))}
+        onProjectDeleted={() => {
+          navigate("/explore");
+        }}
+      />
     </PageTransition>
   );
 }

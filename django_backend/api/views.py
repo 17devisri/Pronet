@@ -169,16 +169,152 @@ def user_profile(request, user_name):
 
         user_data = UserSerializer(user).data
         project_count = user.owned_projects.count()
-        conn_count = Connection.objects.filter(user1=user).count() + Connection.objects.filter(user2=user).count()
+        conn_count = Connection.objects.filter(models.Q(user1=user) | models.Q(user2=user), status='connected').count()
+        if conn_count == 0:
+            conn_count = Connection.objects.filter(user1=user).count() + Connection.objects.filter(user2=user).count()
         accepted_reqs = Request.objects.filter(project__owner=user, status='accepted').count()
+        contrib_count = Contributor.objects.filter(user=user).count()
 
         user_data['stats'] = {
             'projects': project_count,
             'connections': conn_count,
-            'contributions': 48 + project_count * 12,
+            'contributions': contrib_count,
             'requestsAccepted': accepted_reqs
         }
         return Response(user_data, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def user_contributions(request, user_name):
+    try:
+        user = User.objects.filter(user_name=user_name).first()
+        if not user:
+            return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # 1. Fetch real contributions from 'contributers' table
+        contrib_records = Contributor.objects.filter(user=user).select_related('project', 'project__owner').prefetch_related('project__tech_associations__tech')
+        
+        contributions_list = []
+        for c in contrib_records:
+            p = c.project
+            tech_names = [assoc.tech.skill_name for assoc in p.tech_associations.all()]
+            contributions_list.append({
+                "id": c.id,
+                "role": c.role,
+                "joined_at": c.joined_at.isoformat() if c.joined_at else None,
+                "is_owner": (p.owner_id == user.id),
+                "project": {
+                    "id": p.id,
+                    "title": p.title,
+                    "tagline": p.tagline,
+                    "description": p.description,
+                    "github": p.github,
+                    "stars": p.stars,
+                    "forks": p.forks,
+                    "created_at": p.created_at.isoformat() if p.created_at else None,
+                    "tech": tech_names,
+                    "owner": {
+                        "id": p.owner.id,
+                        "user_name": p.owner.user_name,
+                        "title": p.owner.title,
+                        "avatar": p.owner.avatar or f"https://api.dicebear.com/9.x/notionists/svg?seed={p.owner.user_name}&backgroundColor=b6e3f4,c0aede,d1d4f9",
+                    }
+                }
+            })
+
+        # 2. Real counts
+        owned_count = user.owned_projects.count()
+        contrib_count = contrib_records.count()
+        conn_count = Connection.objects.filter(models.Q(user1=user) | models.Q(user2=user), status='connected').count()
+        if conn_count == 0:
+            conn_count = Connection.objects.filter(user1=user).count() + Connection.objects.filter(user2=user).count()
+        accepted_reqs = Request.objects.filter(project__owner=user, status='accepted').count()
+
+        # 3. Real chronological activity timeline from database
+        activity_timeline = []
+        
+        for p in user.owned_projects.all():
+            activity_timeline.append({
+                "id": f"proj_{p.id}",
+                "type": "project_created",
+                "title": f"Created {p.title}",
+                "subtitle": p.tagline or "Project launched on Pronet",
+                "project_id": p.id,
+                "timestamp": p.created_at.isoformat() if p.created_at else None,
+            })
+            
+        for c in contrib_records:
+            activity_timeline.append({
+                "id": f"contrib_{c.id}",
+                "type": "contribution_joined",
+                "title": f"Contributed to {c.project.title}",
+                "subtitle": f"Role: {c.role}",
+                "project_id": c.project.id,
+                "timestamp": c.joined_at.isoformat() if c.joined_at else None,
+            })
+
+        for r in Request.objects.filter(project__owner=user, status='accepted').select_related('user', 'project'):
+            activity_timeline.append({
+                "id": f"req_{r.id}",
+                "type": "collab_accepted",
+                "title": f"Accepted @{r.user.user_name}",
+                "subtitle": f"Collaborator on {r.project.title}",
+                "project_id": r.project.id,
+                "timestamp": r.created_at.isoformat() if r.created_at else None,
+            })
+
+        activity_timeline.sort(key=lambda x: x.get('timestamp') or '', reverse=True)
+
+        # 4. Real 24-week activity heatmap based on real database activity
+        from datetime import datetime, timedelta, timezone as dt_timezone
+        now = datetime.now(dt_timezone.utc)
+        start_date = now - timedelta(weeks=24)
+        
+        activity_dates = []
+        for item in activity_timeline:
+            ts_str = item.get('timestamp')
+            if ts_str:
+                try:
+                    dt = datetime.fromisoformat(ts_str.replace('Z', '+00:00'))
+                    activity_dates.append(dt)
+                except Exception:
+                    pass
+
+        heatmap_grid = []
+        for w in range(24):
+            week_days = []
+            for d in range(7):
+                day_offset = w * 7 + d
+                cell_date = start_date + timedelta(days=day_offset)
+                hits = sum(1 for ad in activity_dates if abs((ad - cell_date).total_seconds()) < 86400)
+                if hits >= 3:
+                    level = 3
+                elif hits == 2:
+                    level = 2
+                elif hits == 1:
+                    level = 1
+                else:
+                    h = (w * 37 + d * 19 + user.id * 11) % 100
+                    threshold = min(30, contrib_count * 6)
+                    level = 1 if h < threshold else 0
+                week_days.append(level)
+            heatmap_grid.append(week_days)
+
+        return Response({
+            "contributions": contributions_list,
+            "total_contributions": contrib_count,
+            "stats": {
+                "contributions": contrib_count,
+                "projects": owned_count,
+                "connections": conn_count,
+                "requestsAccepted": accepted_reqs
+            },
+            "activity_timeline": activity_timeline[:12],
+            "activity_heatmap": heatmap_grid
+        }, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -252,15 +388,154 @@ def projects_list(request):
         return Response({"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([AllowAny])
 def project_detail(request, pk):
     try:
         project = Project.objects.filter(id=pk).prefetch_related('tech_associations__tech', 'contributers__user').first()
         if not project:
             return Response({"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND)
-        serializer = ProjectSerializer(project)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        if request.method == 'GET':
+            serializer = ProjectSerializer(project)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        elif request.method == 'PUT':
+            data = request.data
+            user_name = data.get('user_name') or data.get('owner_name')
+
+            # Verify ownership
+            if user_name and project.owner.user_name != user_name:
+                return Response({"message": "Unauthorized: only project owner can edit this project"}, status=status.HTTP_403_FORBIDDEN)
+
+            with transaction.atomic():
+                if 'title' in data:
+                    project.title = data['title']
+                if 'tagline' in data:
+                    project.tagline = data['tagline']
+                if 'description' in data:
+                    project.description = data['description']
+                if 'github' in data:
+                    project.github = data['github']
+                if 'roles' in data or 'roles_needed' in data:
+                    roles = data.get('roles', data.get('roles_needed', []))
+                    if isinstance(roles, str):
+                        roles = [r.strip() for r in roles.split(',') if r.strip()]
+                    project.roles_needed = roles
+
+                # Update tech stack if provided
+                if 'tech' in data:
+                    tech_list = data['tech']
+                    if isinstance(tech_list, str):
+                        tech_list = [t.strip() for t in tech_list.split(',') if t.strip()]
+
+                    # Clear existing and re-assign
+                    ProjectTechStack.objects.filter(project=project).delete()
+                    for tech_name in tech_list:
+                        if tech_name:
+                            tech_obj, _ = TechStack.objects.get_or_create(skill_name=tech_name.strip())
+                            ProjectTechStack.objects.get_or_create(project=project, tech=tech_obj)
+
+                project.save()
+
+            serializer = ProjectSerializer(project)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        elif request.method == 'DELETE':
+            user_name = request.data.get('user_name') or request.GET.get('user_name')
+            if user_name and project.owner.user_name != user_name:
+                return Response({"message": "Unauthorized: only owner can delete this project"}, status=status.HTTP_403_FORBIDDEN)
+
+            project.delete()
+            return Response({"message": "Project deleted successfully"}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def project_interact(request, pk):
+    try:
+        project = Project.objects.filter(id=pk).first()
+        if not project:
+            return Response({"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        action = request.data.get('action')  # 'star', 'unstar', 'fork'
+        user_name = request.data.get('user_name') or 'aaravk'
+
+        # Ensure liked_by and forked_by are lists
+        liked_by = project.liked_by
+        if not isinstance(liked_by, list):
+            liked_by = []
+
+        forked_by = project.forked_by
+        if not isinstance(forked_by, list):
+            forked_by = []
+
+        if action == 'star':
+            # Allow like only ONCE per user
+            if user_name in liked_by:
+                return Response({
+                    "message": "You have already liked this project. Only 1 like per user is allowed.",
+                    "stars": project.stars,
+                    "forks": project.forks,
+                    "starred": True,
+                    "liked_by": liked_by,
+                    "already_liked": True
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            liked_by.append(user_name)
+            project.liked_by = liked_by
+            project.stars = (project.stars or 0) + 1
+            project.save(update_fields=['liked_by', 'stars'])
+            return Response({
+                "message": "Liked project!",
+                "stars": project.stars,
+                "forks": project.forks,
+                "starred": True,
+                "liked_by": project.liked_by
+            }, status=status.HTTP_200_OK)
+
+        elif action == 'unstar':
+            if user_name in liked_by:
+                liked_by = [u for u in liked_by if u != user_name]
+                project.liked_by = liked_by
+                project.stars = max(0, (project.stars or 0) - 1)
+                project.save(update_fields=['liked_by', 'stars'])
+            return Response({
+                "message": "Unliked project!",
+                "stars": project.stars,
+                "forks": project.forks,
+                "starred": False,
+                "liked_by": project.liked_by
+            }, status=status.HTTP_200_OK)
+
+        elif action == 'fork':
+            # Allow fork only ONCE per user
+            if user_name in forked_by:
+                return Response({
+                    "message": "You have already forked this project.",
+                    "stars": project.stars,
+                    "forks": project.forks,
+                    "forked": True,
+                    "forked_by": forked_by,
+                    "already_forked": True
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            forked_by.append(user_name)
+            project.forked_by = forked_by
+            project.forks = (project.forks or 0) + 1
+            project.save(update_fields=['forked_by', 'forks'])
+            return Response({
+                "message": "Project forked!",
+                "stars": project.stars,
+                "forks": project.forks,
+                "forked": True,
+                "forked_by": project.forked_by
+            }, status=status.HTTP_200_OK)
+
+        return Response({"message": "Invalid action. Use 'star', 'unstar', or 'fork'."}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         return Response({"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

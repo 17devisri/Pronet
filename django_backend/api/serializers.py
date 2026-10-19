@@ -31,8 +31,8 @@ class ProjectSerializer(serializers.ModelSerializer):
         model = Project
         fields = [
             'id', 'title', 'tagline', 'description', 'owner', 'tech',
-            'roles_needed', 'github', 'stars', 'forks', 'collaborators',
-            'comments', 'created_at'
+            'roles_needed', 'github', 'stars', 'forks', 'liked_by', 'forked_by',
+            'collaborators', 'comments', 'created_at'
         ]
 
     def get_tech(self, obj):
@@ -40,7 +40,13 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     def get_collaborators(self, obj):
         collabs = obj.contributers.select_related('user').all()
-        return [UserSerializer(c.user).data for c in collabs]
+        results = []
+        for c in collabs:
+            u_data = UserSerializer(c.user).data
+            u_data['role'] = c.role
+            u_data['joined_at'] = c.joined_at.isoformat() if c.joined_at else None
+            results.append(u_data)
+        return results
 
 
 class RequestSerializer(serializers.ModelSerializer):

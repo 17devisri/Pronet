@@ -11,12 +11,14 @@ urlpatterns = [
     re_path(r'^auth/login/?$', views.auth_login, name='auth_login'),
 
     # Users
+    re_path(r'^users/(?P<user_name>[^/]+)/contributions/?$', views.user_contributions, name='user_contributions'),
     re_path(r'^users/(?P<user_name>[^/]+)/projects/?$', views.user_projects, name='user_projects'),
     re_path(r'^users/(?P<user_name>[^/]+)/?$', views.user_profile, name='user_profile'),
 
     # Projects
     re_path(r'^projects/?$', views.projects_list, name='projects_list'),
     re_path(r'^projects/(?P<pk>[^/]+)/comments/?$', views.add_project_comment, name='add_project_comment'),
+    re_path(r'^projects/(?P<pk>[^/]+)/interact/?$', views.project_interact, name='project_interact'),
     re_path(r'^projects/(?P<pk>[^/]+)/?$', views.project_detail, name='project_detail'),
 
     # Collaboration Requests
