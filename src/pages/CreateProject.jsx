@@ -181,13 +181,13 @@ export default function CreateProject() {
                       onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTech(techInput.trim()))}
                     />
                     {suggestions.length > 0 && (
-                      <div className="absolute z-10 mt-1.5 w-full glass-strong rounded-2xl p-2 max-h-48 overflow-y-auto">
+                      <div className="absolute z-30 mt-1.5 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200 dark:border-white/15 shadow-2xl rounded-2xl p-2 max-h-48 overflow-y-auto">
                         {suggestions.map((s) => (
                           <button
                             key={s}
                             type="button"
                             onClick={() => addTech(s)}
-                            className="w-full text-left px-3 py-2 rounded-xl text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-900/5 dark:hover:bg-white/5 transition-colors"
+                            className="w-full text-left px-3 py-2 rounded-xl text-sm font-medium text-slate-800 dark:text-slate-200 hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                           >
                             {s}
                           </button>

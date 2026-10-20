@@ -375,8 +375,8 @@ export default function ProjectDetail() {
           </GlassCard>
         </div>
 
-        <div className="space-y-6">
-          <GlassCard variants={staggerItem} className="p-6 sticky top-24">
+        <div className="space-y-6 sticky top-24">
+          <GlassCard variants={staggerItem} className="p-6">
             <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Owned by</p>
             <Link to="/profile" className="flex items-center gap-3 mb-5 group">
               <Avatar src={ownerAvatar} online size="lg" ring />

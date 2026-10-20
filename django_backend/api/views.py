@@ -145,6 +145,23 @@ def user_projects(request, user_name):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def user_forks(request, user_name):
+    try:
+        all_projects = Project.objects.all().prefetch_related('tech_associations__tech', 'contributers__user', 'owner')
+        forked_projects = []
+        for p in all_projects:
+            if isinstance(p.forked_by, list) and user_name in p.forked_by:
+                forked_projects.append(p)
+        serializer = ProjectSerializer(forked_projects, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response(
+            {"message": "Failed to fetch forked projects", "error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 
 @api_view(['GET', 'PUT'])
 @permission_classes([AllowAny])
@@ -532,6 +549,20 @@ def project_interact(request, pk):
                 "stars": project.stars,
                 "forks": project.forks,
                 "forked": True,
+                "forked_by": project.forked_by
+            }, status=status.HTTP_200_OK)
+
+        elif action == 'unfork':
+            if user_name in forked_by:
+                forked_by = [u for u in forked_by if u != user_name]
+                project.forked_by = forked_by
+                project.forks = max(0, (project.forks or 0) - 1)
+                project.save(update_fields=['forked_by', 'forks'])
+            return Response({
+                "message": "Project removed from your forked list",
+                "stars": project.stars,
+                "forks": project.forks,
+                "forked": False,
                 "forked_by": project.forked_by
             }, status=status.HTTP_200_OK)
 

@@ -42,7 +42,8 @@ export default function Profile() {
   const [projects, setProjects] = useState([]);
   const [contributionsData, setContributionsData] = useState(null);
   const [contributions, setContributions] = useState([]);
-  const [projectsTab, setProjectsTab] = useState("posted"); // "posted" or "contributed"
+  const [projectsTab, setProjectsTab] = useState("posted"); // "posted", "contributed", or "forked"
+  const [forkedProjects, setForkedProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const showToast = useToast();
 
@@ -118,6 +119,23 @@ export default function Profile() {
       })
       .catch((err) => {
         console.warn("Could not fetch user contributions from DB", err);
+      });
+
+    // 4. Fetch real forked projects from DB
+    fetch(`${API_BASE_URL}/api/users/${currentUsername}/forks`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Forks fetch error");
+        return res.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setForkedProjects(data);
+        } else {
+          setForkedProjects([]);
+        }
+      })
+      .catch(() => {
+        setForkedProjects([]);
       });
   }, [currentUsername]);
 
@@ -286,6 +304,17 @@ export default function Profile() {
                 }`}
               >
                 <Users2 className="w-3.5 h-3.5" /> Contributed Projects ({contributions.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setProjectsTab("forked")}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-medium transition-all ${
+                  projectsTab === "forked"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                <GitFork className="w-3.5 h-3.5" /> Forked Projects ({forkedProjects.length})
               </button>
             </div>
 
@@ -473,6 +502,89 @@ export default function Profile() {
               )}
             </>
           )}
+
+          {/* TAB 3: Forked Projects */}
+          {projectsTab === "forked" && (
+            <>
+              {forkedProjects.length === 0 ? (
+                <div className="text-center py-10 border border-dashed border-slate-700/50 rounded-2xl">
+                  <GitFork className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                  <p className="text-sm text-slate-400 mb-1">No forked projects found.</p>
+                  <p className="text-xs text-slate-500 mb-4">Explore projects in the feed and fork them to your workspace!</p>
+                  <Link to="/feed">
+                    <Button size="sm" variant="primary">
+                      Explore Projects to Fork
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {forkedProjects.map((p) => (
+                    <div
+                      key={p.id}
+                      className="p-5 rounded-2xl bg-slate-900/5 dark:bg-white/5 border border-slate-900/10 dark:border-white/10 hover:border-indigo-400/30 hover:bg-slate-900/8 dark:hover:bg-white/8 transition-all flex flex-col justify-between group"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-1.5 flex-wrap">
+                          <Link
+                            to={`/project/${p.id}`}
+                            className="font-semibold text-slate-800 dark:text-slate-100 hover:text-indigo-400 transition-colors line-clamp-1 text-base"
+                          >
+                            {p.title}
+                          </Link>
+                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-500 dark:text-amber-400 border border-amber-500/25 shrink-0 flex items-center gap-1">
+                            <GitFork className="w-3 h-3" /> Forked
+                          </span>
+                        </div>
+
+                        {p.owner && (
+                          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-2.5">
+                            <Avatar src={p.owner.avatar} size="xs" />
+                            <span>
+                              Originally by <strong className="text-slate-700 dark:text-slate-300">@{p.owner.user_name}</strong>
+                            </span>
+                          </div>
+                        )}
+
+                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-3">{p.tagline || p.description}</p>
+
+                        {Array.isArray(p.tech) && p.tech.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {p.tech.slice(0, 4).map((t) => (
+                              <span
+                                key={t}
+                                className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-900/10 dark:border-white/10 text-xs text-slate-400">
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center gap-1">
+                            <Star className="w-3 h-3 text-amber-400 fill-amber-400" /> {p.stars ?? 0}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <GitFork className="w-3 h-3 text-indigo-400" /> {p.forks ?? 0}
+                          </span>
+                        </div>
+                        <Link
+                          to={`/project/${p.id}`}
+                          className="text-[11px] text-indigo-400 hover:underline flex items-center gap-1 font-medium"
+                        >
+                          View Project &rarr;
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
         </GlassCard>
       </motion.div>
 

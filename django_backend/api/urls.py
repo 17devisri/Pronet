@@ -12,6 +12,7 @@ urlpatterns = [
 
     # Users
     re_path(r'^users/(?P<user_name>[^/]+)/contributions/?$', views.user_contributions, name='user_contributions'),
+    re_path(r'^users/(?P<user_name>[^/]+)/forks/?$', views.user_forks, name='user_forks'),
     re_path(r'^users/(?P<user_name>[^/]+)/projects/?$', views.user_projects, name='user_projects'),
     re_path(r'^users/(?P<user_name>[^/]+)/?$', views.user_profile, name='user_profile'),
 
