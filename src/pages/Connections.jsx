@@ -8,6 +8,7 @@ import ChatModal from "../components/ChatModal";
 import PageTransition, { staggerContainer, staggerItem } from "../components/PageTransition";
 import { useToast } from "../components/Toast";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE_URL } from "../config/api";
 
 export default function Connections() {
   const [users, setUsers] = useState([]);
@@ -22,7 +23,7 @@ export default function Connections() {
   const currentUsername = user?.user_name || "aaravk";
 
   const fetchConnectionsData = () => {
-    fetch(`http://localhost:5000/api/connections?user=${currentUsername}`)
+    fetch(`${API_BASE_URL}/api/connections?user=${currentUsername}`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load connections");
         return res.json();
@@ -66,7 +67,7 @@ export default function Connections() {
     }));
 
     try {
-      const res = await fetch("http://localhost:5000/api/connections/request", {
+      const res = await fetch(`${API_BASE_URL}/api/connections/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -94,7 +95,7 @@ export default function Connections() {
 
   const handleRespond = async (inboundReq, action) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/connections/${inboundReq.id}/respond`, {
+      const res = await fetch(`${API_BASE_URL}/api/connections/${inboundReq.id}/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),

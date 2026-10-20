@@ -5,6 +5,7 @@ import Avatar from "./Avatar";
 import Button from "./Button";
 import { Input } from "./Input";
 import { useToast } from "./Toast";
+import { API_BASE_URL } from "../config/api";
 
 export default function ChatModal({ open, onClose, currentUser, targetUser }) {
   const [messages, setMessages] = useState([]);
@@ -22,7 +23,7 @@ export default function ChatModal({ open, onClose, currentUser, targetUser }) {
     if (!open || !currentUser?.user_name || !targetUser?.user_name) return;
 
     setLoading(true);
-    fetch(`http://localhost:5000/api/connections/messages?user1=${currentUser.user_name}&user2=${targetUser.user_name}`)
+    fetch(`${API_BASE_URL}/api/connections/messages?user1=${currentUser.user_name}&user2=${targetUser.user_name}`)
       .then((res) => res.json())
       .then((data) => {
         if (data && Array.isArray(data.messages)) {
@@ -53,7 +54,7 @@ export default function ChatModal({ open, onClose, currentUser, targetUser }) {
     setSending(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/connections/messages", {
+      const res = await fetch(`${API_BASE_URL}/api/connections/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

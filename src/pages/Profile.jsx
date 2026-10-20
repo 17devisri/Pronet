@@ -27,6 +27,7 @@ import PageTransition, { staggerContainer, staggerItem } from "../components/Pag
 import { useEffect, useState } from "react";
 
 import { useAuth } from "../context/AuthContext";
+import { API_BASE_URL } from "../config/api";
 
 const statCards = [
   { icon: FolderGit2, key: "projects", label: "Projects Posted" },
@@ -66,7 +67,7 @@ export default function Profile() {
     if (!currentUsername) return;
 
     // 1. Fetch real user profile from DB
-    fetch(`http://localhost:5000/api/users/${currentUsername}`)
+    fetch(`${API_BASE_URL}/api/users/${currentUsername}`)
       .then((res) => {
         if (!res.ok) throw new Error("User not found");
         return res.json();
@@ -82,7 +83,7 @@ export default function Profile() {
       });
 
     // 2. Fetch real projects owned by this user from DB
-    fetch(`http://localhost:5000/api/users/${currentUsername}/projects`)
+    fetch(`${API_BASE_URL}/api/users/${currentUsername}/projects`)
       .then((res) => {
         if (!res.ok) throw new Error("Projects fetch error");
         return res.json();
@@ -102,7 +103,7 @@ export default function Profile() {
       });
 
     // 3. Fetch real contributions from DB
-    fetch(`http://localhost:5000/api/users/${currentUsername}/contributions`)
+    fetch(`${API_BASE_URL}/api/users/${currentUsername}/contributions`)
       .then((res) => {
         if (!res.ok) throw new Error("Contributions fetch error");
         return res.json();
@@ -164,7 +165,7 @@ export default function Profile() {
       .filter(Boolean);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/users/${currentUsername}`, {
+      const res = await fetch(`${API_BASE_URL}/api/users/${currentUsername}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

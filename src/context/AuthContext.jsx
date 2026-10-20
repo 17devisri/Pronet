@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import { API_BASE_URL } from "../config/api";
 
 const AuthContext = createContext(null);
 
@@ -17,7 +18,7 @@ export function AuthProvider({ children }) {
   // Sync latest user profile with backend on mount
   useEffect(() => {
     if (user?.user_name) {
-      fetch(`http://localhost:5000/api/users/${user.user_name}`)
+      fetch(`${API_BASE_URL}/api/users/${user.user_name}`)
         .then((res) => {
           if (!res.ok) throw new Error("User not found");
           return res.json();
@@ -39,7 +40,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (emailOrUsername, password) => {
-    const res = await fetch("http://localhost:5000/api/auth/login", {
+    const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: emailOrUsername, password }),
@@ -56,7 +57,7 @@ export function AuthProvider({ children }) {
   };
 
   const register = async ({ user_name, email, password, title, location, bio, skills }) => {
-    const res = await fetch("http://localhost:5000/api/auth/register", {
+    const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

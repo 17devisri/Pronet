@@ -9,6 +9,7 @@ import { Input } from "../components/Input";
 import Button from "../components/Button";
 import GlassCard from "../components/GlassCard";
 import { projects as initialProjects } from "../data/mock";
+import { API_BASE_URL } from "../config/api";
 
 export default function Feed() {
   const [feedProjects, setFeedProjects] = useState(initialProjects);
@@ -21,7 +22,7 @@ export default function Feed() {
   const [modalProject, setModalProject] = useState(null);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/projects")
+    fetch(`${API_BASE_URL}/api/projects`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load");
         return res.json();

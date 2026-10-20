@@ -7,6 +7,7 @@ import { TechPill } from "./Pill";
 import { skillSuggestions } from "../data/mock";
 import { useToast } from "./Toast";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE_URL } from "../config/api";
 
 export default function EditProjectModal({ project, open, onClose, onProjectUpdated, onProjectDeleted }) {
   const { user } = useAuth();
@@ -84,7 +85,7 @@ export default function EditProjectModal({ project, open, onClose, onProjectUpda
 
     setSaving(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/projects/${project.id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/projects/${project.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -121,7 +122,7 @@ export default function EditProjectModal({ project, open, onClose, onProjectUpda
 
     setDeleting(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/projects/${project.id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/projects/${project.id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_name: user?.user_name || project.owner?.user_name || "aaravk" }),

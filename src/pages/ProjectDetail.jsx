@@ -13,6 +13,7 @@ import { useToast } from "../components/Toast";
 import PageTransition, { staggerContainer, staggerItem } from "../components/PageTransition";
 import { projects as mockProjects } from "../data/mock";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE_URL } from "../config/api";
 
 export default function ProjectDetail() {
   const { id } = useParams();
@@ -34,7 +35,7 @@ export default function ProjectDetail() {
   const [isForking, setIsForking] = useState(false);
 
   useEffect(() => {
-    fetch(`http://localhost:5000/api/projects/${id}`)
+    fetch(`${API_BASE_URL}/api/projects/${id}`)
       .then((res) => {
         if (!res.ok) throw new Error("Not found");
         return res.json();
@@ -76,7 +77,7 @@ export default function ProjectDetail() {
     setStars(nextStars);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/projects/${id}/interact`, {
+      const res = await fetch(`${API_BASE_URL}/api/projects/${id}/interact`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, user_name: currentUsername }),
@@ -115,7 +116,7 @@ export default function ProjectDetail() {
     setForks(forks + 1);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/projects/${id}/interact`, {
+      const res = await fetch(`${API_BASE_URL}/api/projects/${id}/interact`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "fork", user_name: currentUsername }),
@@ -147,7 +148,7 @@ export default function ProjectDetail() {
     setComment("");
 
     try {
-      const res = await fetch(`http://localhost:5000/api/projects/${id}/comments`, {
+      const res = await fetch(`${API_BASE_URL}/api/projects/${id}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

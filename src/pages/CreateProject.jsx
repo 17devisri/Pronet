@@ -10,6 +10,7 @@ import PageTransition from "../components/PageTransition";
 import { useToast } from "../components/Toast";
 import { skillSuggestions } from "../data/mock";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE_URL } from "../config/api";
 
 const steps = ["Basics", "Tech & Roles", "Review"];
 
@@ -56,7 +57,7 @@ export default function CreateProject() {
     const activeUsername = user?.user_name || "aaravk";
 
     try {
-      const res = await fetch("http://localhost:5000/api/projects", {
+      const res = await fetch(`${API_BASE_URL}/api/projects`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

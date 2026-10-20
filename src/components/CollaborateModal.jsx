@@ -6,6 +6,7 @@ import Button from "./Button";
 import Avatar from "./Avatar";
 import { useToast } from "./Toast";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE_URL } from "../config/api";
 
 export default function CollaborateModal({ project, open, onClose }) {
   const [message, setMessage] = useState("");
@@ -28,7 +29,7 @@ export default function CollaborateModal({ project, open, onClose }) {
     const activeUsername = user.user_name;
 
     try {
-      const res = await fetch("http://localhost:5000/api/requests", {
+      const res = await fetch(`${API_BASE_URL}/api/requests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -8,6 +8,7 @@ import Button from "../components/Button";
 import PageTransition, { staggerContainer, staggerItem } from "../components/PageTransition";
 import { useToast } from "../components/Toast";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE_URL } from "../config/api";
 
 export default function Requests() {
   const [requests, setRequests] = useState([]);
@@ -22,7 +23,7 @@ export default function Requests() {
       return;
     }
 
-    fetch(`http://localhost:5000/api/requests?user=${user.user_name}`)
+    fetch(`${API_BASE_URL}/api/requests?user=${user.user_name}`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch");
         return res.json();
@@ -57,7 +58,7 @@ export default function Requests() {
     setExitDir((d) => ({ ...d, [req.id]: accepted ? 1 : -1 }));
 
     try {
-      await fetch(`http://localhost:5000/api/requests/${req.id}/respond`, {
+      await fetch(`${API_BASE_URL}/api/requests/${req.id}/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: accepted ? "accept" : "decline" }),

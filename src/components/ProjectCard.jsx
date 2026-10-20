@@ -9,6 +9,7 @@ import { TechPill, RolePill } from "./Pill";
 import { staggerItem } from "./PageTransition";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "./Toast";
+import { API_BASE_URL } from "../config/api";
 
 export default function ProjectCard({ project, onCollaborate }) {
   const { user } = useAuth();
@@ -79,7 +80,7 @@ export default function ProjectCard({ project, onCollaborate }) {
     setStars(nextStars);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/projects/${project.id}/interact`, {
+      const res = await fetch(`${API_BASE_URL}/api/projects/${project.id}/interact`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, user_name: currentUsername }),
@@ -121,7 +122,7 @@ export default function ProjectCard({ project, onCollaborate }) {
     setForks(forks + 1);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/projects/${project.id}/interact`, {
+      const res = await fetch(`${API_BASE_URL}/api/projects/${project.id}/interact`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "fork", user_name: currentUsername }),

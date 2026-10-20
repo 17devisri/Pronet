@@ -7,6 +7,7 @@ import Button from "./Button";
 import ThemeToggle from "./ThemeToggle";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE_URL } from "../config/api";
 
 const links = [
   { to: "/feed", label: "Explore", icon: Compass },
@@ -34,7 +35,7 @@ export default function Navbar() {
     if (!user?.user_name) return;
 
     const checkNotifications = () => {
-      fetch(`http://localhost:5000/api/connections?user=${user.user_name}`)
+      fetch(`${API_BASE_URL}/api/connections?user=${user.user_name}`)
         .then((res) => res.json())
         .then((data) => {
           const unread = data?.total_unread || 0;
