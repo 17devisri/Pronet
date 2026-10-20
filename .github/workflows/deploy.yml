@@ -1,0 +1,63 @@
+name: Build and Deploy Pronet to Azure App Service
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: 'pronet-api-cb'
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install Frontend Dependencies & Build
+        run: |
+          npm ci || npm install
+          npm run build
+        env:
+          VITE_API_URL: 'https://pronet-api-cb.azurewebsites.net'
+
+      - name: 📁 Copy Frontend Build to Django Package
+        run: |
+          mkdir -p django_backend/dist
+          cp -r dist/* django_backend/dist/
+
+      - name: 🐍 Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: django_backend/requirements.txt
+
+      - name: 📦 Install Python Dependencies & Verify Django
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r django_backend/requirements.txt
+          python django_backend/manage.py check
+
+      - name: 🗜️ Package Deployment Bundle
+        run: |
+          cd django_backend
+          zip -r ../deploy-package.zip . -x "*__pycache__*" "*.pyc" "*venv*"
+
+      - name: 🚀 Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: deploy-package.zip
