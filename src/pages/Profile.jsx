@@ -13,7 +13,8 @@ import {
   Inbox,
   Star,
   GitFork,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from "lucide-react";
 import GlassCard from "../components/GlassCard";
 import Avatar from "../components/Avatar";
@@ -46,6 +47,35 @@ export default function Profile() {
   const [forkedProjects, setForkedProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const showToast = useToast();
+
+  const handleDeleteProjectFromProfile = async (proj) => {
+    if (!authUser?.user_name || proj.owner?.user_name !== authUser.user_name) {
+      showToast("Only the owner can delete this project", "error");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete "${proj.title}"? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/projects/${proj.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_name: authUser.user_name }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to delete project");
+      }
+
+      showToast("Project deleted successfully", "success");
+      setProjects((prev) => prev.filter((p) => p.id !== proj.id));
+    } catch (err) {
+      showToast(err.message || "Failed to delete project", "error");
+    }
+  };
 
   // Edit Profile Modal State
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -361,19 +391,34 @@ export default function Profile() {
                           >
                             {p.title}
                           </Link>
-                          <Button
-                            size="xs"
-                            variant="glass"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setEditingProject(p);
-                              setProjectModalOpen(true);
-                            }}
-                            className="shrink-0 flex items-center gap-1 py-0.5 px-2 text-[11px]"
-                          >
-                            <Edit3 className="w-3 h-3 text-indigo-400" /> Edit
-                          </Button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Button
+                              size="xs"
+                              variant="glass"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setEditingProject(p);
+                                setProjectModalOpen(true);
+                              }}
+                              className="flex items-center gap-1 py-0.5 px-2 text-[11px]"
+                            >
+                              <Edit3 className="w-3 h-3 text-indigo-400" /> Edit
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDeleteProjectFromProfile(p);
+                              }}
+                              className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+                              title="Delete project"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         </div>
 
                         <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-3">{p.tagline}</p>

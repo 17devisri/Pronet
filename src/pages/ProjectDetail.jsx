@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Star, GitFork, Code2, ArrowLeft, Send, ExternalLink, Edit3 } from "lucide-react";
+import { Star, GitFork, Code2, ArrowLeft, Send, ExternalLink, Edit3, Trash2 } from "lucide-react";
 import GlassCard from "../components/GlassCard";
 import Avatar from "../components/Avatar";
 import Button from "../components/Button";
@@ -23,6 +23,39 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteProject = async () => {
+    if (!user?.user_name || !isOwner) {
+      showToast("Only the project owner can delete this project", "error");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete "${project.title}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_name: user.user_name }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to delete project");
+      }
+
+      showToast("Project deleted successfully", "success");
+      navigate("/feed");
+    } catch (err) {
+      showToast(err.message || "Failed to delete project", "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
 
@@ -277,14 +310,25 @@ export default function ProjectDetail() {
                 <div className="flex items-center gap-3 flex-wrap">
                   <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">{project.title}</h1>
                   {isOwner && (
-                    <Button
-                      size="xs"
-                      variant="glass"
-                      onClick={() => setEditModalOpen(true)}
-                      className="flex items-center gap-1.5"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" /> Edit Project
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="xs"
+                        variant="glass"
+                        onClick={() => setEditModalOpen(true)}
+                        className="flex items-center gap-1.5"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" /> Edit Project
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={handleDeleteProject}
+                        disabled={deleting}
+                        className="flex items-center gap-1.5 text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 border border-rose-500/20"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> {deleting ? "Deleting..." : "Delete Project"}
+                      </Button>
+                    </div>
                   )}
                 </div>
                 <p className="text-slate-600 dark:text-slate-400 mt-1">{project.tagline}</p>
@@ -486,7 +530,7 @@ export default function ProjectDetail() {
         onClose={() => setEditModalOpen(false)}
         onProjectUpdated={(updated) => setProject((prev) => ({ ...prev, ...updated }))}
         onProjectDeleted={() => {
-          navigate("/explore");
+          navigate("/feed");
         }}
       />
     </PageTransition>

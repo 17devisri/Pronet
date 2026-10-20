@@ -460,7 +460,10 @@ def project_detail(request, pk):
 
         elif request.method == 'DELETE':
             user_name = request.data.get('user_name') or request.GET.get('user_name')
-            if user_name and project.owner.user_name != user_name:
+            if not user_name:
+                return Response({"message": "Missing user_name authentication"}, status=status.HTTP_401_UNAUTHORIZED)
+
+            if project.owner.user_name != user_name:
                 return Response({"message": "Unauthorized: only owner can delete this project"}, status=status.HTTP_403_FORBIDDEN)
 
             project.delete()
