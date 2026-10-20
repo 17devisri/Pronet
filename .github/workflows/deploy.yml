@@ -49,6 +49,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r django_backend/requirements.txt
           python django_backend/manage.py check
+          python django_backend/manage.py migrate --no-input
 
       - name: 🗜️ Package Deployment Bundle
         run: |
