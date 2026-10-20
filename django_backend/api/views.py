@@ -68,7 +68,7 @@ def auth_register(request):
             github_url=data.get('github_url', user_name),
             bio=data.get('bio', 'Passionate developer building collaborative tools.'),
             avatar=f"https://api.dicebear.com/9.x/notionists/svg?seed={user_name}&backgroundColor=b6e3f4,c0aede,d1d4f9",
-            skills=data.get('skills', ['React', 'Python', 'DBMS'])
+            skills=data.get('skills', [])
         )
         user.set_password(password)
         user.save()

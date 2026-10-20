@@ -67,7 +67,7 @@ export function AuthProvider({ children }) {
         title: title || "Full-Stack Developer",
         location: location || "Bengaluru, India",
         bio: bio || "Passionate developer building collaborative tools.",
-        skills: skills || ["React", "Python", "DBMS"],
+        skills: skills || [],
       }),
     });
 
