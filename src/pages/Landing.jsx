@@ -6,7 +6,9 @@ import GlassCard from "../components/GlassCard";
 import Avatar from "../components/Avatar";
 import { TechPill } from "../components/Pill";
 import PageTransition, { staggerContainer, staggerItem } from "../components/PageTransition";
-import { projects, users } from "../data/mock";
+import { useEffect, useState } from "react";
+import { users } from "../data/mock";
+import { API_BASE_URL } from "../config/api";
 
 const features = [
   {
@@ -27,7 +29,18 @@ const features = [
 ];
 
 export default function Landing() {
-  const featured = projects.slice(0, 3);
+  const [featured, setFeatured] = useState([]);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/projects`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setFeatured(data.slice(0, 3));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <PageTransition>
@@ -125,39 +138,50 @@ export default function Landing() {
       </motion.section>
 
       {/* Featured projects preview */}
-      <section className="max-w-6xl mx-auto px-6 pb-28">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">Trending on Pronet</h2>
-          <p className="text-slate-600 dark:text-slate-400">Real projects looking for collaborators right now.</p>
-        </div>
-        <motion.div
-          variants={staggerContainer}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.2 }}
-          className="grid sm:grid-cols-3 gap-6"
-        >
-          {featured.map((p) => (
-            <GlassCard key={p.id} variants={staggerItem} className="p-6">
-              <div className="flex items-center gap-2.5 mb-4">
-                <Avatar src={p.owner.avatar} size="sm" />
-                <p className="text-sm text-slate-600 dark:text-slate-400">{p.owner.name}</p>
-              </div>
-              <h4 className="font-semibold text-slate-900 dark:text-white mb-2">{p.title}</h4>
-              <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-4">{p.tagline}</p>
-              <div className="flex flex-wrap gap-1.5 mb-4">
-                {p.tech.slice(0, 3).map((t) => (
-                  <TechPill key={t} label={t} />
-                ))}
-              </div>
-              <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
-                <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5" />{p.stars}</span>
-                <span className="flex items-center gap-1"><GitFork className="w-3.5 h-3.5" />{p.forks}</span>
-              </div>
-            </GlassCard>
-          ))}
-        </motion.div>
-      </section>
+      {featured.length > 0 && (
+        <section className="max-w-6xl mx-auto px-6 pb-28">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">Trending on Pronet</h2>
+            <p className="text-slate-600 dark:text-slate-400">Real projects looking for collaborators right now.</p>
+          </div>
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.2 }}
+            className="grid sm:grid-cols-3 gap-6"
+          >
+            {featured.map((p) => {
+              const ownerName = p.owner?.name || p.owner?.user_name || "Developer";
+              const ownerAvatar =
+                p.owner?.avatar ||
+                `https://api.dicebear.com/9.x/notionists/svg?seed=${ownerName}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
+              const techList = Array.isArray(p.tech) ? p.tech : [];
+              return (
+                <Link to={`/project/${p.id}`} key={p.id}>
+                  <GlassCard variants={staggerItem} className="p-6 h-full hover:border-indigo-500/30 transition-colors">
+                    <div className="flex items-center gap-2.5 mb-4">
+                      <Avatar src={ownerAvatar} size="sm" />
+                      <p className="text-sm text-slate-600 dark:text-slate-400">{ownerName}</p>
+                    </div>
+                    <h4 className="font-semibold text-slate-900 dark:text-white mb-2">{p.title}</h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-4">{p.tagline}</p>
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {techList.slice(0, 3).map((t) => (
+                        <TechPill key={t} label={t} />
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+                      <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5" />{p.stars || 0}</span>
+                      <span className="flex items-center gap-1"><GitFork className="w-3.5 h-3.5" />{p.forks || 0}</span>
+                    </div>
+                  </GlassCard>
+                </Link>
+              );
+            })}
+          </motion.div>
+        </section>
+      )}
 
       {/* CTA */}
       <section className="max-w-4xl mx-auto px-6 pb-28">

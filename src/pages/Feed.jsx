@@ -8,11 +8,11 @@ import PageTransition, { staggerContainer } from "../components/PageTransition";
 import { Input } from "../components/Input";
 import Button from "../components/Button";
 import GlassCard from "../components/GlassCard";
-import { projects as initialProjects } from "../data/mock";
+import { Link } from "react-router-dom";
 import { API_BASE_URL } from "../config/api";
 
 export default function Feed() {
-  const [feedProjects, setFeedProjects] = useState(initialProjects);
+  const [feedProjects, setFeedProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [activeTech, setActiveTech] = useState(null);
@@ -28,7 +28,7 @@ export default function Feed() {
         return res.json();
       })
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setFeedProjects(data);
         }
         setLoading(false);
@@ -312,6 +312,13 @@ export default function Feed() {
           {Array.from({ length: 6 }).map((_, i) => (
             <ProjectCardSkeleton key={i} />
           ))}
+        </div>
+      ) : feedProjects.length === 0 ? (
+        <div className="text-center py-20 border border-dashed border-slate-700/40 rounded-3xl">
+          <p className="text-slate-500 dark:text-slate-400 mb-4">No projects posted yet. Be the first to publish a project!</p>
+          <Link to="/create">
+            <Button size="sm">Create Project</Button>
+          </Link>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-20 border border-dashed border-slate-700/40 rounded-3xl">

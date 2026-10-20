@@ -11,7 +11,6 @@ import CollaborateModal from "../components/CollaborateModal";
 import EditProjectModal from "../components/EditProjectModal";
 import { useToast } from "../components/Toast";
 import PageTransition, { staggerContainer, staggerItem } from "../components/PageTransition";
-import { projects as mockProjects } from "../data/mock";
 import { useAuth } from "../context/AuthContext";
 import { API_BASE_URL } from "../config/api";
 
@@ -20,21 +19,22 @@ export default function ProjectDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const showToast = useToast();
-  const fallbackProject = mockProjects.find((p) => p.id === id) ?? mockProjects[0];
-  const [project, setProject] = useState(fallbackProject);
+  const [project, setProject] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [comment, setComment] = useState("");
-  const [comments, setComments] = useState(fallbackProject.comments || []);
+  const [comments, setComments] = useState([]);
 
-  const [stars, setStars] = useState(fallbackProject.stars ?? 0);
-  const [forks, setForks] = useState(fallbackProject.forks ?? 0);
+  const [stars, setStars] = useState(0);
+  const [forks, setForks] = useState(0);
   const [isStarred, setIsStarred] = useState(false);
   const [isForked, setIsForked] = useState(false);
   const [isStarring, setIsStarring] = useState(false);
   const [isForking, setIsForking] = useState(false);
 
   useEffect(() => {
+    setLoading(true);
     fetch(`${API_BASE_URL}/api/projects/${id}`)
       .then((res) => {
         if (!res.ok) throw new Error("Not found");
@@ -55,9 +55,15 @@ export default function ProjectDetail() {
           if (Array.isArray(data.comments)) {
             setComments(data.comments);
           }
+        } else {
+          setProject(null);
         }
+        setLoading(false);
       })
-      .catch(() => {});
+      .catch(() => {
+        setProject(null);
+        setLoading(false);
+      });
   }, [id, user?.user_name]);
 
   const handleStar = async () => {
@@ -194,13 +200,42 @@ export default function ProjectDetail() {
     }
   };
 
+  if (loading) {
+    return (
+      <PageTransition className="max-w-5xl mx-auto px-6 py-12">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 w-32 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
+          <div className="h-10 w-2/3 bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
+          <div className="h-20 w-full bg-slate-200 dark:bg-slate-800 rounded-2xl"></div>
+          <div className="h-40 w-full bg-slate-200 dark:bg-slate-800 rounded-2xl"></div>
+        </div>
+      </PageTransition>
+    );
+  }
+
+  if (!project) {
+    return (
+      <PageTransition className="max-w-5xl mx-auto px-6 py-20 text-center">
+        <div className="border border-dashed border-slate-700/40 rounded-3xl p-12 max-w-md mx-auto">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Project not found</h2>
+          <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">
+            The project you are looking for does not exist or may have been deleted.
+          </p>
+          <Link to="/feed">
+            <Button size="sm">Back to Explore</Button>
+          </Link>
+        </div>
+      </PageTransition>
+    );
+  }
+
   const userAvatar =
     user?.avatar ||
     (user?.user_name
       ? `https://api.dicebear.com/9.x/notionists/svg?seed=${user.user_name}&backgroundColor=b6e3f4,c0aede,d1d4f9`
       : `https://api.dicebear.com/9.x/notionists/svg?seed=user&backgroundColor=b6e3f4,c0aede,d1d4f9`);
 
-  const ownerName = project.owner?.user_name || project.owner?.name || "Developer";
+  const ownerName = project?.owner?.user_name || project?.owner?.name || "Developer";
   const ownerAvatar =
     project.owner?.avatar ||
     `https://api.dicebear.com/9.x/notionists/svg?seed=${ownerName}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
