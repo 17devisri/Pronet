@@ -1,9 +1,8 @@
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import Navbar from "./components/Navbar";
 import ParticleBackground from "./components/ParticleBackground";
 import { ToastProvider } from "./components/Toast";
-import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Feed from "./pages/Feed";
 import ProjectDetail from "./pages/ProjectDetail";
@@ -11,24 +10,64 @@ import Profile from "./pages/Profile";
 import CreateProject from "./pages/CreateProject";
 import Requests from "./pages/Requests";
 import Connections from "./pages/Connections";
+import { useAuth } from "./context/AuthContext";
+
+function ProtectedRoute({ children }) {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return null;
+  if (!isAuthenticated) {
+    return <Navigate to="/feed" replace />;
+  }
+  return children;
+}
 
 function AppRoutes() {
   const location = useLocation();
-  const hideNav = location.pathname === "/" || location.pathname === "/auth";
+  const { isAuthenticated } = useAuth();
+  const hideNav = location.pathname === "/auth";
 
   return (
     <>
       {!hideNav && <Navbar />}
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
-          <Route path="/" element={<Landing />} />
-          <Route path="/auth" element={<Auth />} />
+          <Route path="/" element={<Navigate to="/feed" replace />} />
+          <Route path="/auth" element={isAuthenticated ? <Navigate to="/feed" replace /> : <Auth />} />
           <Route path="/feed" element={<Feed />} />
           <Route path="/project/:id" element={<ProjectDetail />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/create" element={<CreateProject />} />
-          <Route path="/requests" element={<Requests />} />
-          <Route path="/connections" element={<Connections />} />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/create"
+            element={
+              <ProtectedRoute>
+                <CreateProject />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/requests"
+            element={
+              <ProtectedRoute>
+                <Requests />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/connections"
+            element={
+              <ProtectedRoute>
+                <Connections />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/feed" replace />} />
         </Routes>
       </AnimatePresence>
     </>

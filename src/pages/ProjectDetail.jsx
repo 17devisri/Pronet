@@ -149,8 +149,13 @@ export default function ProjectDetail() {
   const postComment = async () => {
     if (!comment.trim()) return;
 
+    const activeUsername = user?.user_name;
+    if (!activeUsername) {
+      showToast("Please sign in to comment", "error");
+      return;
+    }
+
     const commentText = comment.trim();
-    const activeUsername = user?.user_name || "aaravk";
     setComment("");
 
     try {

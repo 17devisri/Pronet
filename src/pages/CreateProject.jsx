@@ -54,7 +54,8 @@ export default function CreateProject() {
     step === 0 ? form.title && form.tagline : step === 1 ? form.tech.length > 0 : true;
 
   const submit = async () => {
-    const activeUsername = user?.user_name || "aaravk";
+    const activeUsername = user?.user_name;
+    if (!activeUsername) { showToast("Please sign in to create a project", "error"); navigate("/auth"); return; }
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/projects`, {

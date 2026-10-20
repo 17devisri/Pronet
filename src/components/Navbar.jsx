@@ -9,7 +9,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { API_BASE_URL } from "../config/api";
 
-const links = [
+const allNavLinks = [
   { to: "/feed", label: "Explore", icon: Compass },
   { to: "/requests", label: "Requests", icon: Inbox },
   { to: "/connections", label: "Connections", icon: Users },
@@ -23,6 +23,9 @@ export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
   const [unreadMessages, setUnreadMessages] = useState(0);
   const isDark = theme === "dark";
+  const links = isAuthenticated
+    ? allNavLinks
+    : allNavLinks.filter((l) => l.to === "/feed");
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -127,10 +130,12 @@ export default function Navbar() {
 
         <div className="hidden md:flex items-center gap-3">
           <ThemeToggle />
-          <Button size="sm" variant="glass" onClick={() => navigate("/create")}>
-            <PlusCircle className="w-4 h-4" />
-            New Project
-          </Button>
+          {isAuthenticated && (
+            <Button size="sm" variant="glass" onClick={() => navigate("/create")}>
+              <PlusCircle className="w-4 h-4" />
+              New Project
+            </Button>
+          )}
 
           {isAuthenticated ? (
             <div className="flex items-center gap-2">
@@ -225,10 +230,12 @@ export default function Navbar() {
               Sign In
             </NavLink>
           )}
-          <Button size="sm" variant="primary" className="mt-1" onClick={() => { setMobileOpen(false); navigate("/create"); }}>
-            <PlusCircle className="w-4 h-4" />
-            New Project
-          </Button>
+          {isAuthenticated && (
+            <Button size="sm" variant="primary" className="mt-1" onClick={() => { setMobileOpen(false); navigate("/create"); }}>
+              <PlusCircle className="w-4 h-4" />
+              New Project
+            </Button>
+          )}
         </motion.div>
       )}
     </motion.header>

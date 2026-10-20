@@ -62,7 +62,7 @@ export default function Profile() {
   const [editingProject, setEditingProject] = useState(null);
   const [projectModalOpen, setProjectModalOpen] = useState(false);
 
-  const currentUsername = authUser?.user_name || "aaravk";
+  const currentUsername = authUser?.user_name;
 
   useEffect(() => {
     if (!currentUsername) return;

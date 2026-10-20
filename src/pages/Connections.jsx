@@ -20,7 +20,7 @@ export default function Connections() {
   const showToast = useToast();
   const { user } = useAuth();
 
-  const currentUsername = user?.user_name || "aaravk";
+  const currentUsername = user?.user_name;
 
   const fetchConnectionsData = () => {
     fetch(`${API_BASE_URL}/api/connections?user=${currentUsername}`)

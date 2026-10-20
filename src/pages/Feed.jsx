@@ -10,8 +10,10 @@ import Button from "../components/Button";
 import GlassCard from "../components/GlassCard";
 import { Link } from "react-router-dom";
 import { API_BASE_URL } from "../config/api";
+import { useAuth } from "../context/AuthContext";
 
 export default function Feed() {
+  const { isAuthenticated } = useAuth();
   const [feedProjects, setFeedProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -316,7 +318,7 @@ export default function Feed() {
       ) : feedProjects.length === 0 ? (
         <div className="text-center py-20 border border-dashed border-slate-700/40 rounded-3xl">
           <p className="text-slate-500 dark:text-slate-400 mb-4">No projects posted yet. Be the first to publish a project!</p>
-          <Link to="/create">
+          <Link to={isAuthenticated ? "/create" : "/auth"}>
             <Button size="sm">Create Project</Button>
           </Link>
         </div>

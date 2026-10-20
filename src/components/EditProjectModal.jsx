@@ -95,7 +95,7 @@ export default function EditProjectModal({ project, open, onClose, onProjectUpda
           github,
           tech: techList,
           roles: roles,
-          user_name: user?.user_name || project.owner?.user_name || "aaravk",
+          user_name: user?.user_name || project.owner?.user_name,
         }),
       });
 
@@ -125,7 +125,7 @@ export default function EditProjectModal({ project, open, onClose, onProjectUpda
       const res = await fetch(`${API_BASE_URL}/api/projects/${project.id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_name: user?.user_name || project.owner?.user_name || "aaravk" }),
+        body: JSON.stringify({ user_name: user?.user_name || project.owner?.user_name }),
       });
 
       if (!res.ok) {
