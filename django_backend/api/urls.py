@@ -9,11 +9,13 @@ urlpatterns = [
     # Authentication
     re_path(r'^auth/register/?$', views.auth_register, name='auth_register'),
     re_path(r'^auth/login/?$', views.auth_login, name='auth_login'),
+    re_path(r'^auth/github/?$', views.auth_github, name='auth_github'),
 
     # Users
     re_path(r'^users/(?P<user_name>[^/]+)/contributions/?$', views.user_contributions, name='user_contributions'),
     re_path(r'^users/(?P<user_name>[^/]+)/forks/?$', views.user_forks, name='user_forks'),
     re_path(r'^users/(?P<user_name>[^/]+)/projects/?$', views.user_projects, name='user_projects'),
+    re_path(r'^users/(?P<user_name>[^/]+)/github/disconnect/?$', views.user_github_disconnect, name='user_github_disconnect'),
     re_path(r'^users/(?P<user_name>[^/]+)/?$', views.user_profile, name='user_profile'),
 
     # Projects

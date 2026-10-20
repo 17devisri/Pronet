@@ -85,6 +85,12 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("loggedInUser");
   };
 
+  const loginWithGithub = (userData) => {
+    setUser(userData);
+    localStorage.setItem("loggedInUser", JSON.stringify(userData));
+    return userData;
+  };
+
   const updateUser = (updatedFields) => {
     setUser((prev) => {
       const updated = { ...(prev || {}), ...updatedFields };
@@ -103,6 +109,7 @@ export function AuthProvider({ children }) {
         register,
         logout,
         updateUser,
+        loginWithGithub,
       }}
     >
       {children}

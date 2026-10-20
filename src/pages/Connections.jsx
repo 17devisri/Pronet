@@ -23,7 +23,10 @@ export default function Connections() {
 
   const currentUsername = user?.user_name;
 
-  const fetchConnectionsData = () => {
+  const fetchConnectionsData = (silent = false) => {
+    if (!currentUsername) return;
+    if (!silent) setLoading(true);
+
     fetch(`${API_BASE_URL}/api/connections?user=${currentUsername}`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load connections");
@@ -46,12 +49,19 @@ export default function Connections() {
         console.error(err);
       })
       .finally(() => {
-        setLoading(false);
+        if (!silent) setLoading(false);
       });
   };
 
   useEffect(() => {
     fetchConnectionsData();
+
+    // Live background polling so incoming messages and connection requests update without manual page reload
+    const interval = setInterval(() => {
+      fetchConnectionsData(true);
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [currentUsername]);
 
   const handleConnect = async (targetUser) => {
@@ -323,9 +333,13 @@ export default function Connections() {
       {/* Direct Chat Modal for Connected Users */}
       <ChatModal
         open={!!chatTarget}
-        onClose={() => setChatTarget(null)}
+        onClose={() => {
+          setChatTarget(null);
+          fetchConnectionsData(true);
+        }}
         currentUser={user}
         targetUser={chatTarget}
+        onMessageSent={() => fetchConnectionsData(true)}
       />
     </PageTransition>
   );

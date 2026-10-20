@@ -8,6 +8,7 @@ import { Input } from "../components/Input";
 import PageTransition from "../components/PageTransition";
 import { useToast } from "../components/Toast";
 import { useAuth } from "../context/AuthContext";
+import GithubAuthModal, { GithubIcon } from "../components/GithubAuthModal";
 
 export default function Auth() {
   const [mode, setMode] = useState("login");
@@ -22,7 +23,8 @@ export default function Auth() {
 
   const navigate = useNavigate();
   const showToast = useToast();
-  const { login, register } = useAuth();
+  const { login, register, loginWithGithub } = useAuth();
+  const [githubModalOpen, setGithubModalOpen] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -192,11 +194,28 @@ export default function Auth() {
           <div className="h-px flex-1 bg-slate-900/10 dark:bg-white/10" />
         </div>
 
-        <Button variant="glass" className="w-full" onClick={() => { showToast("Signed in with GitHub", "success"); navigate("/feed"); }}>
-          <Code2 className="w-4 h-4" />
+        <Button
+          type="button"
+          variant="glass"
+          className="w-full flex items-center justify-center gap-2"
+          onClick={() => setGithubModalOpen(true)}
+        >
+          <GithubIcon className="w-4 h-4" />
           Continue with GitHub
         </Button>
       </GlassCard>
+
+      <GithubAuthModal
+        open={githubModalOpen}
+        onClose={() => setGithubModalOpen(false)}
+        mode="auth"
+        onSuccess={(data) => {
+          if (data.user) {
+            loginWithGithub(data.user);
+            navigate("/feed");
+          }
+        }}
+      />
     </PageTransition>
   );
 }

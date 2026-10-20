@@ -1,57 +1,111 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, X, MessageSquare, Check, Clock, UserCheck } from "lucide-react";
+import { Send, X, MessageSquare, Check, Clock } from "lucide-react";
 import Avatar from "./Avatar";
 import Button from "./Button";
 import { Input } from "./Input";
 import { useToast } from "./Toast";
 import { API_BASE_URL } from "../config/api";
 
-export default function ChatModal({ open, onClose, currentUser, targetUser }) {
+export default function ChatModal({ open, onClose, currentUser, targetUser, onMessageSent }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
+  const isPollingRef = useRef(false);
   const showToast = useToast();
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (behavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
   useEffect(() => {
-    if (!open || !currentUser?.user_name || !targetUser?.user_name) return;
+    if (!open || !currentUser?.user_name || !targetUser?.user_name) {
+      setMessages([]);
+      return;
+    }
 
-    setLoading(true);
-    fetch(`${API_BASE_URL}/api/connections/messages?user1=${currentUser.user_name}&user2=${targetUser.user_name}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && Array.isArray(data.messages)) {
-          setMessages(data.messages);
-        } else {
-          setMessages([]);
+    let isMounted = true;
+
+    const fetchMessages = async (silent = true) => {
+      if (isPollingRef.current && silent) return;
+      if (!silent) setLoading(true);
+      isPollingRef.current = true;
+
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/api/connections/messages?user1=${currentUser.user_name}&user2=${targetUser.user_name}`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (isMounted && data && Array.isArray(data.messages)) {
+          setMessages((prev) => {
+            const optimisticMsgs = prev.filter((m) => m.isOptimistic);
+            const serverMsgs = data.messages;
+
+            const currentServerMsgs = prev.filter((m) => !m.isOptimistic);
+            const hasChanged =
+              currentServerMsgs.length !== serverMsgs.length ||
+              (serverMsgs.length > 0 &&
+                currentServerMsgs[currentServerMsgs.length - 1]?.id !==
+                  serverMsgs[serverMsgs.length - 1]?.id);
+
+            if (hasChanged || optimisticMsgs.length > 0) {
+              // If new messages came in from the other user, auto-scroll to bottom
+              if (currentServerMsgs.length < serverMsgs.length) {
+                setTimeout(() => scrollToBottom("smooth"), 50);
+              }
+              return [...serverMsgs, ...optimisticMsgs];
+            }
+            return prev;
+          });
         }
-      })
-      .catch((err) => {
-        console.error("Failed to load chat messages", err);
-      })
-      .finally(() => {
-        setLoading(false);
-        setTimeout(scrollToBottom, 100);
-      });
-  }, [open, currentUser, targetUser]);
+      } catch (err) {
+        console.warn("Failed to load chat messages", err);
+      } finally {
+        isPollingRef.current = false;
+        if (isMounted && !silent) {
+          setLoading(false);
+          setTimeout(() => scrollToBottom("auto"), 50);
+        }
+      }
+    };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    // Initial load
+    fetchMessages(false);
+
+    // Fast 1.5s polling loop so any sent message updates instantly without reloading
+    const pollInterval = setInterval(() => {
+      fetchMessages(true);
+    }, 1500);
+
+    return () => {
+      isMounted = false;
+      clearInterval(pollInterval);
+    };
+  }, [open, currentUser?.user_name, targetUser?.user_name]);
 
   const handleSend = async (e) => {
     e?.preventDefault();
     if (!newMessage.trim() || sending) return;
 
     const textToSend = newMessage.trim();
+    const tempId = `temp_${Date.now()}`;
+    const optimisticMsg = {
+      id: tempId,
+      sender: currentUser.user_name,
+      receiver: targetUser.user_name,
+      text: textToSend,
+      time: "Sending...",
+      isOptimistic: true,
+    };
+
+    // 1. Immediately show message in chat for zero lag
+    setMessages((prev) => [...prev, optimisticMsg]);
     setNewMessage("");
     setSending(true);
+    setTimeout(() => scrollToBottom("smooth"), 30);
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/connections/messages`, {
@@ -70,13 +124,23 @@ export default function ChatModal({ open, onClose, currentUser, targetUser }) {
       }
 
       const savedMsg = await res.json();
-      setMessages((prev) => [...prev, savedMsg]);
+
+      // 2. Replace the optimistic message with the confirmed saved DB record
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? savedMsg : m))
+      );
+
+      if (onMessageSent) {
+        onMessageSent(savedMsg);
+      }
     } catch (err) {
       showToast(err.message || "Could not send message", "error");
-      // Restore unsent text
+      // Remove failed optimistic message and restore draft
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setNewMessage(textToSend);
     } finally {
       setSending(false);
+      setTimeout(() => scrollToBottom("smooth"), 50);
     }
   };
 
@@ -162,9 +226,16 @@ export default function ChatModal({ open, onClose, currentUser, targetUser }) {
                     >
                       {m.text}
                     </div>
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 px-1">
-                      {m.time || "Just now"}
-                    </span>
+                    <div className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500 mt-1 px-1">
+                      <span>{m.time || "Just now"}</span>
+                      {isMine && (
+                        m.isOptimistic ? (
+                          <Clock className="w-2.5 h-2.5 animate-spin" />
+                        ) : (
+                          <Check className="w-2.5 h-2.5 text-indigo-400" />
+                        )
+                      )}
+                    </div>
                   </div>
                 );
               })

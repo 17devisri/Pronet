@@ -26,6 +26,7 @@ import EditProjectModal from "../components/EditProjectModal";
 import { Input } from "../components/Input";
 import { useToast } from "../components/Toast";
 import PageTransition, { staggerContainer, staggerItem } from "../components/PageTransition";
+import GithubAuthModal, { GithubIcon } from "../components/GithubAuthModal";
 import { useEffect, useState } from "react";
 
 import { useAuth } from "../context/AuthContext";
@@ -79,6 +80,28 @@ export default function Profile() {
       setProjects((prev) => prev.filter((p) => p.id !== proj.id));
     } catch (err) {
       showToast(err.message || "Failed to delete project", "error");
+    }
+  };
+
+  const [githubModalOpen, setGithubModalOpen] = useState(false);
+
+  const handleDisconnectGithub = async () => {
+    if (!window.confirm("Are you sure you want to disconnect your GitHub account?")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/users/${currentUsername}/github/disconnect`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to disconnect GitHub");
+
+      showToast("GitHub account disconnected", "success");
+      setProfileData((prev) => ({ ...prev, github_url: "" }));
+      updateUser({ github_url: "" });
+    } catch (err) {
+      showToast(err.message || "Could not disconnect GitHub", "error");
     }
   };
 
@@ -183,7 +206,9 @@ export default function Profile() {
     user?.avatar ||
     `https://api.dicebear.com/9.x/notionists/svg?seed=${currentUsername}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
   const locationText = user?.location || "Location not specified";
-  const githubText = user?.github_url || currentUsername;
+  const rawGithub = (user?.github_url || "").trim();
+  const hasGithub = Boolean(rawGithub);
+  const githubHandle = rawGithub ? rawGithub.replace(/^@+/, "").split("github.com/").pop().split("/")[0] : "";
   const bioText = user?.bio || "No bio yet. Click 'Edit Profile' to add your bio.";
 
   const totalContributions =
@@ -275,10 +300,47 @@ export default function Profile() {
                   <MapPin className="w-3.5 h-3.5" />
                   {locationText}
                 </span>
-                <span className="flex items-center gap-1">
-                  <Code2 className="w-3.5 h-3.5" />
-                  {githubText}
-                </span>
+                {hasGithub ? (
+                  <div className="inline-flex items-center gap-1.5 bg-slate-900/5 dark:bg-white/5 border border-slate-900/10 dark:border-white/10 px-2 py-0.5 rounded-md">
+                    <GithubIcon className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300" />
+                    <a
+                      href={`https://github.com/${githubHandle}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-slate-700 dark:text-slate-300 hover:text-indigo-500 dark:hover:text-indigo-400 font-medium transition-colors flex items-center gap-1"
+                    >
+                      github.com/{githubHandle}
+                      <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+                    </a>
+                    {isOwnProfile && (
+                      <button
+                        type="button"
+                        onClick={handleDisconnectGithub}
+                        title="Disconnect GitHub"
+                        className="ml-1 text-[10px] text-slate-400 hover:text-rose-500 transition-colors"
+                      >
+                        (unlink)
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-2">
+                    <span className="text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                      <GithubIcon className="w-3.5 h-3.5 opacity-60" />
+                      GitHub: Not connected
+                    </span>
+                    {isOwnProfile && (
+                      <button
+                        type="button"
+                        onClick={() => setGithubModalOpen(true)}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-500 hover:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 px-2 py-0.5 rounded-md transition-colors"
+                      >
+                        <GithubIcon className="w-3 h-3" />
+                        Connect GitHub
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             {isOwnProfile && (
@@ -711,6 +773,20 @@ export default function Profile() {
         }}
         onProjectDeleted={(deletedId) => {
           setProjects((prev) => prev.filter((p) => p.id !== deletedId));
+        }}
+      />
+
+      {/* GitHub Connect Modal */}
+      <GithubAuthModal
+        open={githubModalOpen}
+        onClose={() => setGithubModalOpen(false)}
+        mode="connect"
+        currentUsername={currentUsername}
+        onSuccess={(data) => {
+          if (data.user) {
+            setProfileData((prev) => ({ ...prev, ...data.user }));
+            updateUser(data.user);
+          }
         }}
       />
     </PageTransition>

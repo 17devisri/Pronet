@@ -3,6 +3,12 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from django.db import models, transaction
+import json
+import os
+import uuid
+import urllib.request
+import urllib.error
+import urllib.parse
 from .models import User, TechStack, Project, ProjectTechStack, Contributor, Request, Connection
 from .serializers import UserSerializer, ProjectSerializer, RequestSerializer, ConnectionSerializer
 
@@ -65,7 +71,7 @@ def auth_register(request):
             email=email,
             title=data.get('title', 'Full-Stack Developer'),
             location=data.get('location', 'Bengaluru, India'),
-            github_url=data.get('github_url', user_name),
+            github_url=data.get('github_url', '').strip(),
             bio=data.get('bio', 'Passionate developer building collaborative tools.'),
             avatar=f"https://api.dicebear.com/9.x/notionists/svg?seed={user_name}&backgroundColor=b6e3f4,c0aede,d1d4f9",
             skills=data.get('skills', [])
@@ -126,6 +132,187 @@ def auth_login(request):
             {"message": "Server error", "error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+def fetch_github_profile_data(github_identifier):
+    """
+    Extracts username from handle or full URL and verifies against GitHub public API.
+    Returns (data_dict, error_message).
+    """
+    if not github_identifier:
+        return None, "GitHub username or URL is required."
+
+    identifier = str(github_identifier).strip()
+    if "github.com/" in identifier:
+        identifier = identifier.split("github.com/")[-1].split("/")[0].split("?")[0].split("#")[0]
+    identifier = identifier.lstrip("@").strip()
+
+    if not identifier:
+        return None, "Invalid GitHub username format."
+
+    url = f"https://api.github.com/users/{urllib.parse.quote(identifier)}"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Pronet-Collaboration-Platform",
+            "Accept": "application/vnd.github.v3+json",
+        }
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            if response.status == 200:
+                raw_bytes = response.read()
+                data = json.loads(raw_bytes.decode('utf-8'))
+                return data, None
+            return None, f"GitHub returned status {response.status}"
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None, f"GitHub account '@{identifier}' was not found. Please check the username."
+        elif e.code == 403:
+            return {
+                "login": identifier,
+                "name": identifier,
+                "avatar_url": f"https://github.com/{identifier}.png",
+                "html_url": f"https://github.com/{identifier}",
+                "bio": "",
+                "location": "",
+            }, None
+        return None, f"GitHub API error: {e.reason}"
+    except Exception as e:
+        return None, f"Unable to reach GitHub: {str(e)}"
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def auth_github(request):
+    """
+    Handles:
+    1. Sign In / Register via GitHub account.
+    2. Connect / Link GitHub to an existing Pronet account (when link_user is passed).
+    """
+    try:
+        data = request.data or {}
+        github_input = data.get('github_username') or data.get('username') or data.get('code') or ''
+        link_user = data.get('link_user', '').strip()
+
+        if not github_input:
+            return Response(
+                {"message": "GitHub username or profile URL is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 1. Fetch & verify GitHub user profile
+        gh_data, err = fetch_github_profile_data(github_input)
+        if err or not gh_data:
+            return Response({"message": err or "Failed to verify GitHub profile"}, status=status.HTTP_400_BAD_REQUEST)
+
+        gh_username = gh_data.get('login', '').strip()
+        if not gh_username:
+            return Response({"message": "Invalid GitHub profile data received"}, status=status.HTTP_400_BAD_REQUEST)
+
+        gh_avatar = gh_data.get('avatar_url') or f"https://github.com/{gh_username}.png"
+        gh_bio = gh_data.get('bio') or "Passionate developer building collaborative tools."
+        gh_location = gh_data.get('location') or "Bengaluru, India"
+
+        # CASE 1: Link GitHub to existing logged-in user
+        if link_user:
+            target_user = User.objects.filter(user_name=link_user).first()
+            if not target_user:
+                return Response({"message": f"User '{link_user}' not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            # Check if this GitHub profile is already connected to someone else
+            other_user = User.objects.filter(github_url__iexact=gh_username).exclude(id=target_user.id).first()
+            if other_user:
+                return Response(
+                    {"message": f"This GitHub account is already connected to @{other_user.user_name}."},
+                    status=status.HTTP_409_CONFLICT
+                )
+
+            target_user.github_url = gh_username
+            if gh_avatar and ("dicebear" in target_user.avatar or not target_user.avatar):
+                target_user.avatar = gh_avatar
+            target_user.save()
+
+            return Response({
+                "message": f"Successfully connected GitHub @{gh_username} to your account!",
+                "user": UserSerializer(target_user).data,
+                "github_profile": gh_data
+            }, status=status.HTTP_200_OK)
+
+        # CASE 2: Sign In or Register via GitHub
+        existing_user = (
+            User.objects.filter(github_url__iexact=gh_username).first() or
+            User.objects.filter(user_name__iexact=gh_username).first()
+        )
+
+        if existing_user:
+            if not existing_user.github_url:
+                existing_user.github_url = gh_username
+                existing_user.save(update_fields=['github_url'])
+
+            return Response({
+                "message": f"Welcome back, {existing_user.user_name}!",
+                "user": UserSerializer(existing_user).data,
+                "github_profile": gh_data
+            }, status=status.HTTP_200_OK)
+
+        # User does not exist, create new Pronet user
+        base_username = gh_username
+        chosen_username = base_username
+        counter = 1
+        while User.objects.filter(user_name__iexact=chosen_username).exists():
+            chosen_username = f"{base_username}_{counter}"
+            counter += 1
+
+        chosen_email = gh_data.get('email')
+        if not chosen_email or User.objects.filter(email__iexact=chosen_email).exists():
+            chosen_email = f"{chosen_username.lower()}@users.noreply.github.com"
+            counter = 1
+            while User.objects.filter(email__iexact=chosen_email).exists():
+                chosen_email = f"{chosen_username.lower()}_{counter}@users.noreply.github.com"
+                counter += 1
+
+        new_user = User(
+            user_name=chosen_username,
+            email=chosen_email,
+            title="Full-Stack Developer",
+            location=gh_location,
+            github_url=gh_username,
+            bio=gh_bio,
+            avatar=gh_avatar,
+            skills=[]
+        )
+        new_user.set_password(f"gh_{uuid.uuid4().hex}")
+        new_user.save()
+
+        return Response({
+            "message": f"Welcome to Pronet! Created account with GitHub @{gh_username}.",
+            "user": UserSerializer(new_user).data,
+            "github_profile": gh_data
+        }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response({"message": "Server error", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def user_github_disconnect(request, user_name):
+    try:
+        user = User.objects.filter(user_name=user_name).first()
+        if not user:
+            return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        user.github_url = ""
+        user.save(update_fields=['github_url'])
+
+        return Response({
+            "message": "GitHub account disconnected",
+            "user": UserSerializer(user).data
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 @api_view(['GET'])
