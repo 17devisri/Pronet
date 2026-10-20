@@ -1,4 +1,4 @@
-# 🌐 Pronet - Developer Collaboration & Project Showcase Platform
+#  Pronet - Developer Collaboration & Project Showcase Platform
 
 Pronet is a modern, full-stack collaborative platform designed for developers to showcase projects, discover open-source initiatives, recruit contributors, and connect with peers in the tech community.
 
@@ -6,9 +6,9 @@ Built with a **React 19 + Tailwind CSS** frontend and a robust **Django REST Fra
 
 ---
 
-## ✨ Key Features
+##  Key Features
 
-### 🚀 Project Discovery & Showcase
+###  Project Discovery & Showcase
 - **Explore & Filter**: Browse developer projects by keyword, technology stack, and title with instant filtering.
 - **Project Details**: Rich project pages showcasing project descriptions, GitHub repositories, live demo links, required team roles, and contributor rosters.
 - **Interactive Engagement**:
@@ -17,29 +17,29 @@ Built with a **React 19 + Tailwind CSS** frontend and a robust **Django REST Fra
   - **Project Discussions**: In-app comments and feedback directly on project cards and detail views.
   - **Project Management**: Owners can edit project titles, taglines, descriptions, GitHub links, and required roles on the fly.
 
-### 🤝 Seamless Collaboration & Requests
+###  Seamless Collaboration & Requests
 - **Join as Contributor**: Request to collaborate on specific roles (e.g., Frontend, Backend, UI/UX).
 - **Request Management**: Project owners can review incoming join requests, accept new team members, or decline requests.
 - **Accepted Collaborators**: Accepted members are automatically added to the project's contributor roster.
 
-### 💬 Developer Networking & Chat
+###  Developer Networking & Chat
 - **Connection System**: Send, accept, or decline connection requests with fellow developers.
 - **Direct Messaging / Chat**: Real-time integrated chat between connected developers with instant message history and notification badges.
 - **Separated Request Queue**: Incoming connection requests are prioritized at the top of the network view for swift management.
 
-### 👤 Developer Profiles & Analytics
+###  Developer Profiles & Analytics
 - **Personalized Profile**: Customizable bio, avatar, location, title, and technical skills list.
 - **Real-Time Stats**: Live indicators for Projects Posted, Total Connections, Contributions, and Collaborations Accepted.
 - **Tabbed Projects**: Switch between *Posted Projects* and *Contributed Projects*.
 
-### 🎨 Modern UI & Experience
+###  Modern UI & Experience
 - **Glassmorphic Design**: Clean glass card components, animated particle canvas background, and smooth page transitions powered by **Framer Motion**.
 - **Dark & Light Mode**: Seamless theme switching with persistent local state.
 - **Responsive Layout**: Designed for seamless usage across desktop, tablet, and mobile displays.
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 ### Frontend
 - **Framework**: [React 19](https://react.dev/) + [Vite](https://vitejs.dev/)
@@ -56,7 +56,7 @@ Built with a **React 19 + Tailwind CSS** frontend and a robust **Django REST Fra
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```text
 Pronet/
@@ -97,7 +97,7 @@ Pronet/
 
 ---
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 - **Node.js** (v18 or higher) & **npm**
@@ -165,7 +165,7 @@ Pronet/
 
 ---
 
-## 📡 API Overview
+##  API Overview
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -185,7 +185,7 @@ Pronet/
 
 ---
 
-## 🤝 Contributing
+##  Contributing
 
 Contributions are welcome! If you would like to contribute:
 1. Fork the repository.
@@ -196,6 +196,6 @@ Contributions are welcome! If you would like to contribute:
 
 ---
 
-## 📄 License
+##  License
 
 This project is open-source and available under the [MIT License](LICENSE).
