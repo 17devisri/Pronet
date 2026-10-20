@@ -56,8 +56,19 @@ jobs:
           zip -r ../deploy-package.zip . -x "*__pycache__*" "*.pyc" "*venv*"
 
       - name: 🚀 Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: deploy-package.zip
+        run: |
+          echo "Initiating ZipDeploy to pronet-api-cb.scm.azurewebsites.net..."
+          HTTP_STATUS=$(curl -s -w "%{http_code}" -o deploy_response.log -X POST \
+            -u "pronet_cb_2026_dev:${{ secrets.AZURE_DEPLOY_PASSWORD || 'Pronet@SuperSecure2026!' }}" \
+            --data-binary "@deploy-package.zip" \
+            https://pronet-api-cb.scm.azurewebsites.net/api/zipdeploy)
+
+          echo "Deployment HTTP status code: $HTTP_STATUS"
+          cat deploy_response.log
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✅ Deployment completed successfully!"
+          else
+            echo "❌ Deployment failed with HTTP $HTTP_STATUS"
+            exit 1
+          fi
