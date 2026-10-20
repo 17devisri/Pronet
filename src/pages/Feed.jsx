@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, SlidersHorizontal, X, Sparkles, Star, GitFork, Check, ArrowDownUp } from "lucide-react";
+import { Search, SlidersHorizontal, X, Sparkles, Star, GitFork, Check, ArrowDownUp, ChevronLeft, ChevronRight } from "lucide-react";
 import ProjectCard from "../components/ProjectCard";
 import { ProjectCardSkeleton } from "../components/Skeleton";
 import CollaborateModal from "../components/CollaborateModal";
@@ -23,6 +23,30 @@ export default function Feed() {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [modalProject, setModalProject] = useState(null);
 
+  // Horizontal Tech Scroll state
+  const techScrollRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = () => {
+    const el = techScrollRef.current;
+    if (el) {
+      const { scrollLeft, scrollWidth, clientWidth } = el;
+      setCanScrollLeft(scrollLeft > 6);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 6);
+    }
+  };
+
+  const scrollTech = (dir) => {
+    if (techScrollRef.current) {
+      techScrollRef.current.scrollBy({
+        left: dir === "left" ? -240 : 240,
+        behavior: "smooth",
+      });
+      setTimeout(checkScroll, 300);
+    }
+  };
+
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/projects`)
       .then((res) => {
@@ -44,6 +68,16 @@ export default function Feed() {
   const allTech = useMemo(() => {
     return [...new Set(feedProjects.flatMap((p) => (Array.isArray(p.tech) ? p.tech : [])))];
   }, [feedProjects]);
+
+  useEffect(() => {
+    // Delay slightly to allow DOM layout measurement
+    const timer = setTimeout(checkScroll, 100);
+    window.addEventListener("resize", checkScroll);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", checkScroll);
+    };
+  }, [allTech]);
 
   // Extract all distinct roles needed
   const allRoles = useMemo(() => {
@@ -248,34 +282,70 @@ export default function Feed() {
         )}
       </AnimatePresence>
 
-      {/* Tech Stack Chips Quick Scroll */}
-      <div className="flex flex-wrap gap-2 mb-8">
-        <motion.button
-          whileTap={{ scale: 0.94 }}
-          onClick={() => setActiveTech(null)}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-            !activeTech
-              ? "bg-indigo-500/20 border-indigo-400/40 text-indigo-700 dark:text-indigo-300"
-              : "border-slate-900/10 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-          }`}
-        >
-          All Tech
-        </motion.button>
-        {allTech.map((t) => (
-          <motion.button
-            key={t}
-            whileTap={{ scale: 0.94 }}
-            onClick={() => setActiveTech(t === activeTech ? null : t)}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              activeTech === t
-                ? "bg-indigo-500/20 border-indigo-400/40 text-indigo-700 dark:text-indigo-300"
-                : "border-slate-900/10 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-            }`}
+      {/* Tech Stack Chips Horizontal Quick Scroll (Single-Row) */}
+      {allTech.length > 0 && (
+        <div className="relative mb-6">
+          {/* Left Arrow Button */}
+          {canScrollLeft && (
+            <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center pr-3 bg-gradient-to-r from-[#f8f9fd] dark:from-[#0f1117] via-[#f8f9fd]/90 dark:via-[#0f1117]/90 to-transparent">
+              <button
+                onClick={() => scrollTech("left")}
+                aria-label="Scroll left"
+                className="w-7 h-7 rounded-full bg-white dark:bg-slate-800 shadow-md border border-slate-900/10 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-indigo-500 hover:scale-105 transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Scrollable Container (Compact single row) */}
+          <div
+            ref={techScrollRef}
+            onScroll={checkScroll}
+            className="flex items-center gap-2 overflow-x-auto py-1 px-1 scroll-smooth [&::-webkit-scrollbar]:hidden"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
-            {t}
-          </motion.button>
-        ))}
-      </div>
+            <motion.button
+              whileTap={{ scale: 0.94 }}
+              onClick={() => setActiveTech(null)}
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                !activeTech
+                  ? "bg-indigo-500/20 border-indigo-400/40 text-indigo-700 dark:text-indigo-300 font-semibold"
+                  : "border-slate-900/10 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+              }`}
+            >
+              All Tech
+            </motion.button>
+            {allTech.map((t) => (
+              <motion.button
+                key={t}
+                whileTap={{ scale: 0.94 }}
+                onClick={() => setActiveTech(t === activeTech ? null : t)}
+                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  activeTech === t
+                    ? "bg-indigo-500/20 border-indigo-400/40 text-indigo-700 dark:text-indigo-300 font-semibold"
+                    : "border-slate-900/10 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                }`}
+              >
+                {t}
+              </motion.button>
+            ))}
+          </div>
+
+          {/* Right Arrow Button */}
+          {canScrollRight && (
+            <div className="absolute right-0 top-0 bottom-0 z-10 flex items-center pl-3 bg-gradient-to-l from-[#f8f9fd] dark:from-[#0f1117] via-[#f8f9fd]/90 dark:via-[#0f1117]/90 to-transparent">
+              <button
+                onClick={() => scrollTech("right")}
+                aria-label="Scroll right"
+                className="w-7 h-7 rounded-full bg-white dark:bg-slate-800 shadow-md border border-slate-900/10 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-indigo-500 hover:scale-105 transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Active Filter Tags Indicator */}
       {activeFilterCount > 0 && (
