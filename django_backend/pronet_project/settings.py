@@ -74,10 +74,29 @@ if USE_MYSQL:
         }
     }
 else:
+    # On Azure Linux App Service, /home/site is persistent across deployments & restarts
+    if os.path.exists('/home/site'):
+        persistent_dir = Path('/home/site/data')
+        persistent_dir.mkdir(parents=True, exist_ok=True)
+        persistent_db = persistent_dir / 'db.sqlite3'
+        local_db = BASE_DIR / 'db.sqlite3'
+
+        # If persistent DB doesn't exist yet, copy initial data from local DB
+        if not persistent_db.exists() and local_db.exists():
+            import shutil
+            try:
+                shutil.copy2(local_db, persistent_db)
+            except Exception:
+                pass
+
+        DB_PATH = persistent_db
+    else:
+        DB_PATH = BASE_DIR / 'db.sqlite3'
+
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+            'NAME': DB_PATH,
         }
     }
 

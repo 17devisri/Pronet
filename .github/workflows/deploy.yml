@@ -49,12 +49,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r django_backend/requirements.txt
           python django_backend/manage.py check
-          python django_backend/manage.py migrate --no-input
+          # Remove local SQLite db generated on runner so it is NEVER packaged into deployment bundle
+          rm -f django_backend/db.sqlite3
 
       - name: 🗜️ Package Deployment Bundle
         run: |
           cd django_backend
-          zip -r ../deploy-package.zip . -x "*__pycache__*" "*.pyc" "*venv*"
+          # Exclude SQLite files, virtualenvs, and caches so live persistent data on Azure is NEVER overwritten
+          zip -r ../deploy-package.zip . -x "*__pycache__*" "*.pyc" "*venv*" "*.sqlite3*" "*db.sqlite3*"
 
       - name: 🚀 Deploy to Azure Web App
         run: |

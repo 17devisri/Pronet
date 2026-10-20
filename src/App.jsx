@@ -44,6 +44,14 @@ function AppRoutes() {
             }
           />
           <Route
+            path="/profile/:username"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/create"
             element={
               <ProtectedRoute>

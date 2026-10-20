@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { UserPlus2, Check, Clock, X, MessageSquare, MapPin, Users, ChevronDown, ChevronUp } from "lucide-react";
 import GlassCard from "../components/GlassCard";
@@ -185,7 +186,11 @@ export default function Connections() {
                         key={req.id}
                         className="p-3 rounded-2xl bg-slate-900/5 dark:bg-white/5 border border-slate-900/10 dark:border-white/10 flex items-center justify-between gap-3"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <Link
+                          to={`/profile/${req.user?.user_name}`}
+                          className="flex items-center gap-2.5 min-w-0 group hover:opacity-85 transition-opacity cursor-pointer"
+                          title={`View @${req.user?.user_name}'s profile`}
+                        >
                           <Avatar
                             src={
                               req.user?.avatar ||
@@ -195,14 +200,14 @@ export default function Connections() {
                             size="sm"
                           />
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">
+                            <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate group-hover:text-indigo-400 transition-colors">
                               {req.user?.user_name}
                             </p>
                             <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
                               {req.user?.title || "Developer"}
                             </p>
                           </div>
-                        </div>
+                        </Link>
                         <div className="flex gap-1 shrink-0">
                           <Button size="xs" variant="success" onClick={() => handleRespond(req, "accept")} className="px-2 py-1 text-xs">
                             <Check className="w-3 h-3" /> Accept
@@ -251,20 +256,26 @@ export default function Connections() {
 
             return (
               <GlassCard key={u.id || u.user_name} variants={staggerItem} className="p-6 flex flex-col items-center text-center">
-                <Avatar src={avatarUrl} online size="xl" ring className="mb-4" />
-                <h3 className="font-semibold text-slate-900 dark:text-white text-base">
-                  {u.user_name}
-                </h3>
-                <p className="text-xs text-indigo-500 dark:text-indigo-400 mb-1">@{u.user_name}</p>
-                <p className="text-sm text-slate-600 dark:text-slate-300 font-medium mb-1">
-                  {u.title || "Full-Stack Developer"}
-                </p>
-                {u.location && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mb-4">
-                    <MapPin className="w-3 h-3" /> {u.location}
+                <Link
+                  to={`/profile/${u.user_name}`}
+                  className="flex flex-col items-center text-center w-full group cursor-pointer"
+                  title={`View @${u.user_name}'s profile`}
+                >
+                  <Avatar src={avatarUrl} online size="xl" ring className="mb-4 group-hover:scale-105 transition-transform" />
+                  <h3 className="font-semibold text-slate-900 dark:text-white text-base group-hover:text-indigo-400 transition-colors">
+                    {u.user_name}
+                  </h3>
+                  <p className="text-xs text-indigo-500 dark:text-indigo-400 mb-1">@{u.user_name}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 font-medium mb-1">
+                    {u.title || "Full-Stack Developer"}
                   </p>
-                )}
-                <div className="flex gap-2 w-full mt-auto">
+                  {u.location && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mb-4">
+                      <MapPin className="w-3 h-3" /> {u.location}
+                    </p>
+                  )}
+                </Link>
+                <div className="flex gap-2 w-full mt-auto pt-2">
                   <Button
                     size="sm"
                     variant={status === "connected" ? "glass" : status === "pending_sent" ? "glass" : "primary"}

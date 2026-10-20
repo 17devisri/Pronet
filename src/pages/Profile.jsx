@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
+  ArrowLeft,
   MapPin,
   Code2,
   Users2,
@@ -38,8 +39,12 @@ const statCards = [
 ];
 
 export default function Profile() {
+  const { username } = useParams();
   const { user: authUser, updateUser } = useAuth();
-  const [profileData, setProfileData] = useState(authUser);
+  const targetUsername = username || authUser?.user_name;
+  const isOwnProfile = !username || username === authUser?.user_name;
+
+  const [profileData, setProfileData] = useState(isOwnProfile ? authUser : null);
   const [projects, setProjects] = useState([]);
   const [contributionsData, setContributionsData] = useState(null);
   const [contributions, setContributions] = useState([]);
@@ -92,7 +97,7 @@ export default function Profile() {
   const [editingProject, setEditingProject] = useState(null);
   const [projectModalOpen, setProjectModalOpen] = useState(false);
 
-  const currentUsername = authUser?.user_name;
+  const currentUsername = targetUsername;
 
   useEffect(() => {
     if (!currentUsername) return;
@@ -106,7 +111,9 @@ export default function Profile() {
       .then((data) => {
         if (data && data.user_name) {
           setProfileData(data);
-          updateUser(data);
+          if (isOwnProfile) {
+            updateUser(data);
+          }
         }
       })
       .catch((err) => {
@@ -167,7 +174,7 @@ export default function Profile() {
       .catch(() => {
         setForkedProjects([]);
       });
-  }, [currentUsername]);
+  }, [targetUsername, isOwnProfile]);
 
   const user = profileData || authUser;
   const displayName = user?.user_name || currentUsername;
@@ -242,6 +249,14 @@ export default function Profile() {
 
   return (
     <PageTransition className="max-w-5xl mx-auto px-6 py-10">
+      {!isOwnProfile && (
+        <Link
+          to="/connections"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white mb-6 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to Connections
+        </Link>
+      )}
       <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-6">
         <GlassCard variants={staggerItem} variant="strong" className="p-8 relative overflow-hidden">
           <div className="pointer-events-none absolute -top-16 -right-16 w-64 h-64 rounded-full bg-indigo-600/20 blur-[100px]" />
@@ -266,9 +281,11 @@ export default function Profile() {
                 </span>
               </div>
             </div>
-            <Button variant="glass" onClick={handleOpenEdit}>
-              <Edit3 className="w-4 h-4" /> Edit Profile
-            </Button>
+            {isOwnProfile && (
+              <Button variant="glass" onClick={handleOpenEdit}>
+                <Edit3 className="w-4 h-4" /> Edit Profile
+              </Button>
+            )}
           </div>
           <p className="relative text-sm text-slate-700 dark:text-slate-300 mt-6 leading-relaxed max-w-2xl">
             {bioText}
@@ -391,34 +408,36 @@ export default function Profile() {
                           >
                             {p.title}
                           </Link>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <Button
-                              size="xs"
-                              variant="glass"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setEditingProject(p);
-                                setProjectModalOpen(true);
-                              }}
-                              className="flex items-center gap-1 py-0.5 px-2 text-[11px]"
-                            >
-                              <Edit3 className="w-3 h-3 text-indigo-400" /> Edit
-                            </Button>
-                            <Button
-                              size="xs"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleDeleteProjectFromProfile(p);
-                              }}
-                              className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
-                              title="Delete project"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
+                          {isOwnProfile && (
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <Button
+                                size="xs"
+                                variant="glass"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setEditingProject(p);
+                                  setProjectModalOpen(true);
+                                }}
+                                className="flex items-center gap-1 py-0.5 px-2 text-[11px]"
+                              >
+                                <Edit3 className="w-3 h-3 text-indigo-400" /> Edit
+                              </Button>
+                              <Button
+                                size="xs"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleDeleteProjectFromProfile(p);
+                                }}
+                                className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+                                title="Delete project"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
 
                         <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-3">{p.tagline}</p>
